@@ -1,0 +1,58 @@
+services:
+  # ============================================
+  # Backend + Admin UI Service
+  # ============================================
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: dataq-backend
+    restart: unless-stopped
+    network_mode: "host"
+    env_file:
+      - ../.env
+    environment:
+      # Server Configuration
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+
+      # MongoDB Configuration
+      # Option 1: Use bundled MongoDB (default)
+      MONGODB_HOST: ${MONGODB_HOST:-mongodb}
+      MONGODB_PORT: ${MONGODB_PORT:-27017}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-dataq-analyzer}
+      MONGODB_USERNAME: ${MONGODB_USERNAME:-admin}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD:-changeme}
+      MONGODB_AUTH_REQUIRED: ${MONGODB_AUTH_REQUIRED:-true}
+
+      # Option 2: Use external MongoDB (set MONGODB_URI)
+      MONGODB_URI: ${MONGODB_URI}
+
+      # MQTT Configuration
+      MQTT_BROKER_URL: ${MQTT_BROKER_URL:-mqtt://mqtt-broker:1883}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_USE_TLS: ${MQTT_USE_TLS:-false}
+      MQTT_TOPIC_PREFIX: ${MQTT_TOPIC_PREFIX:-dataq/#}
+
+      # CORS Configuration (for user frontend)
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    volumes:
+      - backend_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  backend_logs:
+    driver: local

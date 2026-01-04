@@ -1,0 +1,240 @@
+import { useState, useEffect, useCallback } from 'react';
+import CameraSelector from './components/CameraSelector';
+import FilterPanel from './components/FilterPanel';
+import FlowHeatmap from './components/FlowHeatmap';
+import Settings from './components/Settings';
+import Setup from './components/Setup';
+import Login from './components/Login';
+import UserManagement from './components/UserManagement';
+import CameraManagement from './components/CameraManagement';
+import { pathsAPI, camerasAPI, authAPI } from './services/api';
+import { useAuth } from './context/AuthContext';
+import './App.css';
+
+function App() {
+  const { isAuthenticated, loading: authLoading, user, isAdmin, logout } = useAuth();
+  const [setupRequired, setSetupRequired] = useState(null);
+  const [checkingSetup, setCheckingSetup] = useState(true);
+  const [selectedCamera, setSelectedCamera] = useState('');
+  const [cameraDetails, setCameraDetails] = useState(null);
+  const [filters, setFilters] = useState({});
+  const [pathData, setPathData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showCameraManagement, setShowCameraManagement] = useState(false);
+
+  // Check if initial setup is required
+  useEffect(() => {
+    const checkSetup = async () => {
+      try {
+        const response = await authAPI.checkSetup();
+        setSetupRequired(response.data.setupRequired);
+      } catch (err) {
+        console.error('Failed to check setup status:', err);
+        // Assume setup is required if check fails
+        setSetupRequired(true);
+      } finally {
+        setCheckingSetup(false);
+      }
+    };
+
+    checkSetup();
+  }, []);
+
+  // Reset setupRequired when user becomes authenticated (e.g., after creating admin)
+  useEffect(() => {
+    if (isAuthenticated) {
+      setSetupRequired(false);
+    }
+  }, [isAuthenticated]);
+
+  // Load camera details and snapshot when selected (only when authenticated)
+  useEffect(() => {
+    if (!isAuthenticated || !selectedCamera) {
+      setCameraDetails(null);
+      return;
+    }
+
+    const loadCameraDetails = async () => {
+      try {
+        const [camerasResponse, snapshotResponse] = await Promise.all([
+          camerasAPI.getAll(),
+          camerasAPI.getSnapshot(selectedCamera).catch(() => null),
+        ]);
+
+        const camera = camerasResponse.data.find((c) => c.serialNumber === selectedCamera);
+
+        // Add snapshot to camera details if available
+        if (camera && snapshotResponse?.data) {
+          camera.snapshot = snapshotResponse.data;
+        }
+
+        setCameraDetails(camera);
+      } catch (err) {
+        console.error('Error loading camera details:', err);
+      }
+    };
+
+    loadCameraDetails();
+  }, [selectedCamera, isAuthenticated]);
+
+  // Load path data callback
+  const loadPathData = useCallback(async () => {
+    if (!selectedCamera) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const queryFilters = {
+        serialNumber: selectedCamera,
+        ...filters,
+        limit: 500, // Limit results for performance
+      };
+
+      const [pathsResponse, statsResponse] = await Promise.all([
+        pathsAPI.query(queryFilters),
+        pathsAPI.getStats(selectedCamera, filters.from, filters.to),
+      ]);
+
+      setPathData(pathsResponse.events || []);
+      setStats(statsResponse.data || []);
+    } catch (err) {
+      setError('Failed to load path data');
+      console.error('Error loading path data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCamera, filters]);
+
+  // Load path data when camera or filters change (only when authenticated)
+  useEffect(() => {
+    if (!isAuthenticated || !selectedCamera) return;
+    loadPathData();
+  }, [selectedCamera, loadPathData, isAuthenticated]);
+
+  // Show loading state while checking setup and auth
+  if (checkingSetup || authLoading) {
+    return (
+      <div className="app-loading">
+        <h2>Loading...</h2>
+      </div>
+    );
+  }
+
+  // Show setup page if setup is required
+  if (setupRequired) {
+    return <Setup />;
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  const handleCameraChange = (serialNumber) => {
+    setSelectedCamera(serialNumber);
+    setPathData([]);
+    setStats(null);
+  };
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  // Use base64 snapshot if available, otherwise show placeholder
+  const backgroundImage = cameraDetails?.snapshot?.image
+    ? `data:image/jpeg;base64,${cameraDetails.snapshot.image}`
+    : '/images/camera-placeholder.jpg';
+
+  const handleLogout = () => {
+    logout();
+    setSelectedCamera('');
+    setPathData([]);
+    setStats(null);
+  };
+
+  return (
+    <div className="app">
+      <header className="app-header">
+        <h1>DataQ Analyzer - Flow Heatmap</h1>
+        <div className="header-actions">
+          {isAdmin() && (
+            <>
+              <button className="admin-btn" onClick={() => setShowUserManagement(true)} title="User Management">
+                👥 Users
+              </button>
+              <button className="admin-btn" onClick={() => setShowCameraManagement(true)} title="Camera Management">
+                📷 Cameras
+              </button>
+            </>
+          )}
+          <button className="settings-btn" onClick={() => setShowSettings(true)} title="Settings">
+            ⚙️ Settings
+          </button>
+          <div className="user-info">
+            <span className="username">{user?.username}</span>
+            <button className="logout-btn" onClick={handleLogout} title="Logout">
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      {showUserManagement && <UserManagement onClose={() => setShowUserManagement(false)} />}
+      {showCameraManagement && <CameraManagement onClose={() => setShowCameraManagement(false)} />}
+      <div className="app-container">
+        <aside className="sidebar">
+          <CameraSelector selectedCamera={selectedCamera} onCameraChange={handleCameraChange} />
+          {selectedCamera && (
+            <>
+              <FilterPanel onFilterChange={handleFilterChange} />
+              {stats && stats.length > 0 && (
+                <div className="stats-panel">
+                  <h3>Statistics</h3>
+                  {stats.map((stat) => (
+                    <div key={stat._id} className="stat-item">
+                      <strong>{stat._id}:</strong>
+                      <ul>
+                        <li>Count: {stat.count}</li>
+                        <li>Avg Age: {stat.avgAge?.toFixed(1)}s</li>
+                        <li>Avg Speed: {stat.avgSpeed?.toFixed(2)}</li>
+                        <li>Max Speed: {stat.maxSpeed?.toFixed(2)}</li>
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </aside>
+        <main className="main-content">
+          {!selectedCamera && (
+            <div className="empty-state">
+              <h2>Welcome to DataQ Analyzer</h2>
+              <p>Select a camera from the sidebar to view flow heatmap data.</p>
+            </div>
+          )}
+          {selectedCamera && (
+            <>
+              <div className="content-header">
+                <h2>{cameraDetails?.name || selectedCamera}</h2>
+                {loading && <span className="loading-indicator">Loading...</span>}
+                {error && <span className="error-message">{error}</span>}
+                {!loading && !error && (
+                  <span className="result-count">{pathData.length} paths loaded</span>
+                )}
+              </div>
+              <FlowHeatmap pathData={pathData} backgroundImage={backgroundImage} />
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default App;

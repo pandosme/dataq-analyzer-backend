@@ -1,0 +1,358 @@
+.camera-management-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.camera-management-inline {
+  width: 100%;
+  height: 100%;
+}
+
+.camera-management-modal .camera-management-content {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.camera-management-inline .camera-management-content {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.camera-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #ddd;
+  background: #f5f5f5;
+  border-radius: 8px 8px 0 0;
+}
+
+.camera-management-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.camera-management-actions {
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.cameras-list {
+  padding: 20px;
+}
+
+.cameras-list table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cameras-list th {
+  text-align: left;
+  padding: 12px;
+  background: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+  font-weight: 600;
+  color: #333;
+}
+
+.cameras-list td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.cameras-list tr:hover {
+  background: #f9f9f9;
+}
+
+.serial-number {
+  font-family: monospace;
+  font-size: 13px;
+  color: #666;
+}
+
+.status-badge,
+.type-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-enabled {
+  background: #28a745;
+  color: white;
+}
+
+.status-disabled {
+  background: #6c757d;
+  color: white;
+}
+
+.type-local {
+  background: #007bff;
+  color: white;
+}
+
+.type-remote {
+  background: #17a2b8;
+  color: white;
+}
+
+.no-data {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 40px !important;
+}
+
+.camera-form {
+  padding: 20px;
+}
+
+.camera-form h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.camera-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.camera-form textarea:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fafafa;
+  transition: background 0.2s;
+}
+
+.checkbox-label:hover {
+  background: #f0f0f0;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.checkbox-label span {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+input[disabled] {
+  background: #f0f0f0;
+  cursor: not-allowed;
+  color: #666;
+}
+
+.form-section-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 20px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.actions .btn-refresh {
+  padding: 6px 12px;
+  margin-right: 8px;
+  background: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.actions .btn-refresh:hover:not(:disabled) {
+  background: #138496;
+}
+
+.actions .btn-refresh:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.actions .btn-edit {
+  padding: 6px 12px;
+  margin-right: 8px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.actions .btn-edit:hover {
+  background: #0056b3;
+}
+
+.actions .btn-delete {
+  padding: 6px 12px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.actions .btn-delete:hover {
+  background: #c82333;
+}
+
+.btn-connect {
+  padding: 10px 24px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-connect:hover:not(:disabled) {
+  background: #218838;
+}
+
+.btn-connect:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Detection Filters Section */
+.filter-section {
+  margin-top: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.filter-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.checkbox-group .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.checkbox-group .checkbox-label:hover {
+  border-color: #667eea;
+  background: #f0f2ff;
+}
+
+.checkbox-group .checkbox-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkbox-group .checkbox-label span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.filter-section input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  -webkit-appearance: none;
+  margin-top: 8px;
+}
+
+.filter-section input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+}
+
+.filter-section input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #667eea;
+  cursor: pointer;
+  border: none;
+}

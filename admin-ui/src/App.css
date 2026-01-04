@@ -1,0 +1,352 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: #f5f7fa;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #f5f7fa;
+  color: #333;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-height: 60px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  flex: 1;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Application Navigation Tabs */
+.app-navigation {
+  display: flex;
+  gap: 4px;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.nav-tab:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.nav-tab.active {
+  background: white;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.nav-tab.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+.nav-label {
+  font-size: 13px;
+}
+
+/* Header Right Section */
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.2s;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 16px;
+  margin-left: 16px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.username {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.logout-btn {
+  padding: 8px 16px;
+  background: rgba(231, 76, 60, 0.3);
+  color: white;
+  border: 1px solid rgba(231, 76, 60, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover {
+  background: rgba(231, 76, 60, 0.5);
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #6c757d;
+  text-align: center;
+  padding: 40px;
+}
+
+.empty-state h2 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+/* Panel Content (shared styles for all three-column layouts) */
+.left-panel-content,
+.right-panel-content {
+  padding: 20px;
+}
+
+.panel-section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.panel-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.panel-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* No camera selected / No snapshot states */
+.no-camera-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-size: 15px;
+}
+
+/* Stats List (for Flow Heatmap right panel) */
+.loading-text {
+  color: #007bff;
+  font-size: 13px;
+  margin: 0;
+}
+
+.result-count {
+  color: #6c757d;
+  font-size: 13px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-item {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.stat-item strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Color-coded class names to match path colors */
+.stat-class-car {
+  color: #FFFF00 !important; /* Yellow */
+}
+
+.stat-class-human {
+  color: #00FF00 !important; /* Lime */
+}
+
+.stat-class-truck {
+  color: #0000FF !important; /* Blue */
+}
+
+.stat-class-bus {
+  color: #FFA500 !important; /* Orange */
+}
+
+.stat-class-bike {
+  color: #FF1493 !important; /* DeepPink */
+}
+
+.stat-class-licenseplate {
+  color: #00BFFF !important; /* DeepSkyBlue */
+}
+
+.stat-class-bag {
+  color: #800080 !important; /* Purple */
+}
+
+.stat-class-head {
+  color: #FFD700 !important; /* Gold */
+}
+
+.stat-class-animal {
+  color: #7FFF00 !important; /* Chartreuse */
+}
+
+.stat-class-vehicle {
+  color: #00FFFF !important; /* Cyan (Aqua) */
+}
+
+.stat-class-other,
+.stat-class-unknown {
+  color: #FF0000 !important; /* Red */
+}
+
+.stat-item ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.stat-item li {
+  padding: 4px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  border: 1px solid #f5c6cb;
+  font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 1400px) {
+  .header-left {
+    gap: 20px;
+  }
+
+  .nav-label {
+    display: none;
+  }
+
+  .nav-tab {
+    padding: 10px;
+    min-width: 40px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-header {
+    flex-wrap: wrap;
+    min-height: auto;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .header-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

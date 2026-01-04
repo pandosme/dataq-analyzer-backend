@@ -1,0 +1,291 @@
+.dashboard-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dashboard-inline {
+  width: 100%;
+  height: 100%;
+}
+
+.dashboard-modal .dashboard-content {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 1400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-inline .dashboard-content {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #ddd;
+  background: #f5f5f5;
+  border-radius: 8px 8px 0 0;
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+/* Statistics Cards */
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 2px solid #eee;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+  font-size: 40px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f5f5f5;
+}
+
+.stat-total .stat-icon {
+  background: #e3f2fd;
+}
+
+.stat-connected .stat-icon {
+  background: #e8f5e9;
+  color: #28a745;
+}
+
+.stat-disconnected .stat-icon {
+  background: #ffebee;
+  color: #dc3545;
+}
+
+.stat-details {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dashboard Sections */
+.dashboard-section {
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.dashboard-section:last-child {
+  border-bottom: none;
+}
+
+.dashboard-section h3 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.no-data {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+/* Device List */
+.device-list table,
+.events-list table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.device-list th,
+.events-list th {
+  text-align: left;
+  padding: 12px;
+  background: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+  font-weight: 600;
+  color: #333;
+  font-size: 13px;
+}
+
+.device-list td,
+.events-list td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.device-list tr:hover,
+.events-list tr:hover {
+  background: #f9f9f9;
+}
+
+/* Device Status Indicators */
+.status-indicator {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.status-online {
+  color: #28a745;
+}
+
+.status-offline {
+  color: #dc3545;
+}
+
+.device-connected {
+  background: #f8fff9;
+}
+
+.device-disconnected {
+  background: #fff8f8;
+}
+
+.device-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.device-serial {
+  font-family: 'Courier New', monospace;
+  color: #666;
+  font-size: 13px;
+}
+
+.device-type-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #e0e0e0;
+  color: #555;
+}
+
+.device-address {
+  font-family: 'Courier New', monospace;
+  color: #666;
+  font-size: 13px;
+}
+
+.device-metric {
+  color: #555;
+  font-size: 13px;
+  text-align: right;
+}
+
+.device-lastseen {
+  color: #999;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Event List */
+.event-time {
+  color: #666;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.event-camera {
+  font-weight: 500;
+  color: #333;
+}
+
+.class-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #007bff;
+  color: white;
+}
+
+.event-tracking {
+  font-family: 'Courier New', monospace;
+  color: #666;
+  font-size: 12px;
+}
+
+.event-metric {
+  color: #555;
+  font-size: 13px;
+  text-align: right;
+}
+
+/* Loading and Error States */
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #666;
+  font-size: 16px;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 12px;
+  border-radius: 4px;
+  margin: 20px;
+  border: 1px solid #f5c6cb;
+}
