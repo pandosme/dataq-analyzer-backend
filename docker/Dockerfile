@@ -40,11 +40,11 @@ RUN mkdir -p /app/logs && chown -R node:node /app
 USER node
 
 # Expose API port
-EXPOSE 3000
+EXPOSE 3303
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+  CMD node -e "require('http').get('http://localhost:3303/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 
 # Start server
 CMD ["node", "src/server.js"]

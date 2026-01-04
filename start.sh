@@ -98,8 +98,8 @@ case "${1:-start}" in
         print_info "Services started successfully!"
         echo
         echo "Access the application:"
-        echo -e "  Admin UI: ${BLUE}http://localhost:3000/admin${NC}"
-        echo -e "  API:      ${BLUE}http://localhost:3000/api${NC}"
+        echo -e "  Admin UI: ${BLUE}http://localhost:3303/admin${NC}"
+        echo -e "  API:      ${BLUE}http://localhost:3303/api${NC}"
         echo
         echo "View logs:"
         echo -e "  ${BLUE}./start.sh logs${NC}"
@@ -128,7 +128,7 @@ case "${1:-start}" in
         docker-compose -f docker/docker-compose.yml --env-file .env ps
         echo
         print_info "Health check:"
-        curl -s http://localhost:3000/api/health | python3 -m json.tool || echo "Service not responding"
+        curl -s http://localhost:3303/api/health | python3 -m json.tool || echo "Service not responding"
         ;;
 
     clean)

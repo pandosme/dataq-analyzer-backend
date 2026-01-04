@@ -64,7 +64,7 @@ export const dbConfig = {
  * Server configuration
  */
 export const serverConfig = {
-  port: parseInt(process.env.PORT, 10) || 3000,
+  port: parseInt(process.env.PORT, 10) || 3303,
   nodeEnv: process.env.NODE_ENV || 'development',
   isDevelopment: process.env.NODE_ENV !== 'production',
 };

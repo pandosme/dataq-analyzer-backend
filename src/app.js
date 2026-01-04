@@ -41,7 +41,10 @@ export function createApp() {
   app.use('/api', apiRoutes);
 
   // Serve admin UI static files from root path
-  const adminDistPath = path.join(__dirname, '..', 'admin-ui', 'dist');
+  // In Docker: /app/dist/admin, in dev: /app/admin-ui/dist
+  const adminDistPath = process.env.NODE_ENV === 'production'
+    ? path.join(__dirname, '..', 'dist', 'admin')
+    : path.join(__dirname, '..', 'admin-ui', 'dist');
   app.use(express.static(adminDistPath));
 
   // Admin UI fallback route for React Router (must come after API routes)
