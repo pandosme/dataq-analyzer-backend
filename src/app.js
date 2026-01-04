@@ -37,40 +37,17 @@ export function createApp() {
   // Serve static files from public directory (images, etc.)
   app.use('/public', express.static(path.join(__dirname, '..', 'public')));
 
-  // Serve admin UI static files from /admin path
-  const adminDistPath = path.join(__dirname, '..', 'dist', 'admin');
-  app.use('/admin', express.static(adminDistPath));
-
-  // API routes
+  // API routes (must come before static file serving to avoid conflicts)
   app.use('/api', apiRoutes);
 
-  // Admin UI fallback route (for React Router - must come after API routes)
-  app.get('/admin/*', (req, res) => {
+  // Serve admin UI static files from root path
+  const adminDistPath = path.join(__dirname, '..', 'admin-ui', 'dist');
+  app.use(express.static(adminDistPath));
+
+  // Admin UI fallback route for React Router (must come after API routes)
+  // This handles client-side routing - any non-API route serves index.html
+  app.get('*', (req, res) => {
     res.sendFile(path.join(adminDistPath, 'index.html'));
-  });
-
-  // Root route
-  app.get('/', (req, res) => {
-    res.json({
-      name: 'DataQ Analyzer',
-      version: '1.0.0',
-      description: 'MQTT-based analyzer for Axis DataQ camera path and flow data',
-      endpoints: {
-        admin: '/admin',
-        health: '/api/health',
-        cameras: '/api/cameras',
-        paths: '/api/paths',
-      },
-    });
-  });
-
-  // 404 handler
-  app.use((req, res) => {
-    res.status(404).json({
-      success: false,
-      error: 'Not Found',
-      path: req.path,
-    });
   });
 
   // Error handler

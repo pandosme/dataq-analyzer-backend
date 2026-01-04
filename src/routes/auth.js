@@ -1,21 +1,35 @@
 import express from 'express';
 import * as authService from '../services/authService.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
+import { authConfig } from '../config/index.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
 
 /**
- * POST /api/auth/setup-check
+ * GET /api/auth/setup-check
  * Check if initial setup is required
+ *
+ * Setup is NOT required if:
+ * - Environment-based admin exists (ADMIN_USERNAME and ADMIN_PASSWORD_HASH in .env)
+ * - OR database users exist
  */
 router.get('/setup-check', async (req, res) => {
   try {
+    // Check if environment-based admin is configured
+    const hasEnvAdmin = !!(authConfig.adminUsername && authConfig.adminPasswordHash);
+
+    // Check if database users exist
     const hasUsers = await authService.hasUsers();
+
+    // Setup is required only if BOTH env admin and database users are missing
+    const setupRequired = !hasEnvAdmin && !hasUsers;
+
     res.json({
       success: true,
       data: {
-        setupRequired: !hasUsers,
+        setupRequired,
+        hasEnvAdmin,
         hasUsers,
       },
     });

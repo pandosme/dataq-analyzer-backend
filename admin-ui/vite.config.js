@@ -4,10 +4,10 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/admin/',  // Critical: admin UI served from /admin path in production
+  base: '/',  // Admin UI served from root path
   server: {
     host: '0.0.0.0',  // Listen on all network interfaces
-    port: 5174,       // Different port from user frontend (5173)
+    port: 5174,       // Development port
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
