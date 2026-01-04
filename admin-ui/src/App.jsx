@@ -5,6 +5,7 @@ import Setup from './components/Setup';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import CameraManagement from './components/CameraManagement';
+import ConnectionStatus from './components/ConnectionStatus';
 import { authAPI } from './services/api';
 import { useAuth } from './context/AuthContext';
 import './App.css';
@@ -97,6 +98,7 @@ function App() {
         </div>
 
         <div className="header-right">
+          <ConnectionStatus />
           <div className="header-actions">
             <div className="user-menu">
               <span className="username">{user?.username} (Admin)</span>
