@@ -1,120 +1,52 @@
 import express from 'express';
-import * as authService from '../services/authService.js';
-import { authenticate, requireAdmin } from '../middleware/auth.js';
+import bcrypt from 'bcrypt';
 import { authConfig } from '../config/index.js';
+import { User } from '../models/index.js';
+import * as authService from '../services/authService.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
 
 /**
- * GET /api/auth/setup-check
- * Check if initial setup is required
- *
- * Setup is NOT required if:
- * - Environment-based admin exists (ADMIN_USERNAME and ADMIN_PASSWORD_HASH in .env)
- * - OR database users exist
- */
-router.get('/setup-check', async (req, res) => {
-  try {
-    // Check if environment-based admin is configured
-    const hasEnvAdmin = !!(authConfig.adminUsername && authConfig.adminPasswordHash);
-
-    // Check if database users exist
-    const hasUsers = await authService.hasUsers();
-
-    // Setup is required only if BOTH env admin and database users are missing
-    const setupRequired = !hasEnvAdmin && !hasUsers;
-
-    res.json({
-      success: true,
-      data: {
-        setupRequired,
-        hasEnvAdmin,
-        hasUsers,
-      },
-    });
-  } catch (error) {
-    logger.error('Setup check failed', { error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to check setup status' });
-  }
-});
-
-/**
- * POST /api/auth/setup
- * Create initial admin user (only works if no users exist)
- */
-router.post('/setup', async (req, res) => {
-  try {
-    const { username, email, password, fullName } = req.body;
-
-    if (!username || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Username, email, and password are required',
-      });
-    }
-
-    const result = await authService.createInitialAdmin({
-      username,
-      email,
-      password,
-      fullName,
-    });
-
-    res.status(201).json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    logger.error('Initial admin creation failed', { error: error.message });
-    res.status(400).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * POST /api/auth/register
- * Register a new user (admin only)
- */
-router.post('/register', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const { username, email, password, fullName, role, authorizedCameras } = req.body;
-
-    if (!username || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Username, email, and password are required',
-      });
-    }
-
-    const result = await authService.register({
-      username,
-      email,
-      password,
-      fullName,
-      role: role || 'user',
-    });
-
-    // If authorizedCameras provided, update the user
-    if (authorizedCameras && Array.isArray(authorizedCameras)) {
-      await authService.updateUser(result.user._id, { authorizedCameras });
-      result.user.authorizedCameras = authorizedCameras;
-    }
-
-    res.status(201).json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    logger.error('User registration failed', { error: error.message });
-    res.status(400).json({ success: false, error: error.message });
-  }
-});
-
-/**
  * POST /api/auth/login
- * Login user
+ * Simple password verification for admin UI
  */
-router.post('/login', async (req, res) => {
+router.post('/login', (req, res) => {
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({
+      success: false,
+      error: 'Password is required',
+    });
+  }
+
+  // Check against ADMIN_PASSWORD in .env
+  if (!authConfig.adminPassword) {
+    return res.status(500).json({
+      success: false,
+      error: 'ADMIN_PASSWORD not configured in .env',
+    });
+  }
+
+  if (password === authConfig.adminPassword) {
+    return res.json({
+      success: true,
+      data: { authenticated: true },
+    });
+  }
+
+  return res.status(401).json({
+    success: false,
+    error: 'Invalid password',
+  });
+});
+
+/**
+ * POST /api/auth/client-login
+ * JWT login for client applications
+ */
+router.post('/client-login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -125,110 +57,162 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const result = await authService.login(username, password);
+    // Find user
+    const user = await User.findOne({
+      $or: [{ username }, { email: username }],
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials',
+      });
+    }
+
+    if (!user.enabled) {
+      return res.status(403).json({
+        success: false,
+        error: 'Account is disabled',
+      });
+    }
+
+    // Verify password
+    const isValid = await user.comparePassword(password);
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials',
+      });
+    }
+
+    // Generate JWT token
+    const token = authService.generateToken(user);
 
     res.json({
       success: true,
-      data: result,
+      data: {
+        user: user.toSafeObject(),
+        token,
+      },
     });
   } catch (error) {
-    logger.error('Login failed', { error: error.message });
-    res.status(401).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * GET /api/auth/me
- * Get current user profile
- */
-router.get('/me', authenticate, async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      data: req.user.toObject(),
-    });
-  } catch (error) {
-    logger.error('Get profile failed', { error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to get user profile' });
+    logger.error('Client login failed', { error: error.message });
+    res.status(500).json({ success: false, error: 'Login failed' });
   }
 });
 
 /**
  * GET /api/auth/users
- * Get all users (admin only)
+ * Get all users
  */
-router.get('/users', authenticate, requireAdmin, async (req, res) => {
+router.get('/users', async (req, res) => {
   try {
-    const users = await authService.getAllUsers();
-    res.json({
-      success: true,
-      data: users,
-    });
+    const users = await User.find().select('-password').sort({ createdAt: -1 }).lean();
+    res.json({ success: true, data: users });
   } catch (error) {
-    logger.error('Get users failed', { error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to retrieve users' });
+    logger.error('Failed to get users', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to get users' });
   }
 });
 
 /**
- * GET /api/auth/users/:id
- * Get user by ID (admin only)
+ * POST /api/auth/users
+ * Create a new user
  */
-router.get('/users/:id', authenticate, requireAdmin, async (req, res) => {
+router.post('/users', async (req, res) => {
   try {
-    const user = await authService.getUserById(req.params.id);
-    res.json({
+    const { username, email, password, role, authorizedCameras } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username, email, and password are required',
+      });
+    }
+
+    // Check if user exists
+    const existing = await User.findOne({
+      $or: [{ username }, { email }],
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        error: existing.username === username ? 'Username already exists' : 'Email already exists',
+      });
+    }
+
+    const user = new User({
+      username,
+      email,
+      password,
+      role: role || 'user',
+      authorizedCameras: authorizedCameras || [],
+    });
+
+    await user.save();
+
+    logger.info('User created', { username, role: user.role });
+
+    res.status(201).json({
       success: true,
-      data: user,
+      data: user.toSafeObject(),
     });
   } catch (error) {
-    logger.error('Get user failed', { error: error.message });
-    res.status(404).json({ success: false, error: 'User not found' });
+    logger.error('Failed to create user', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to create user' });
   }
 });
 
 /**
  * PUT /api/auth/users/:id
- * Update user (admin only)
+ * Update a user
  */
-router.put('/users/:id', authenticate, requireAdmin, async (req, res) => {
+router.put('/users/:id', async (req, res) => {
   try {
-    const user = await authService.updateUser(req.params.id, req.body);
+    const { email, role, enabled, authorizedCameras, password } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    if (email) user.email = email;
+    if (role) user.role = role;
+    if (enabled !== undefined) user.enabled = enabled;
+    if (authorizedCameras) user.authorizedCameras = authorizedCameras;
+    if (password) user.password = password;
+
+    await user.save();
+
+    logger.info('User updated', { userId: req.params.id });
+
     res.json({
       success: true,
-      data: user,
+      data: user.toSafeObject(),
     });
   } catch (error) {
-    logger.error('Update user failed', { error: error.message });
-    res.status(400).json({ success: false, error: error.message });
+    logger.error('Failed to update user', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to update user' });
   }
 });
 
 /**
  * DELETE /api/auth/users/:id
- * Delete user (admin only)
+ * Delete a user
  */
-router.delete('/users/:id', authenticate, requireAdmin, async (req, res) => {
+router.delete('/users/:id', async (req, res) => {
   try {
-    // Prevent deleting yourself
-    if (req.params.id === req.user._id.toString()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Cannot delete your own account',
-      });
-    }
-
-    const deleted = await authService.deleteUser(req.params.id);
-    if (!deleted) {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    res.json({
-      success: true,
-      message: 'User deleted successfully',
-    });
+    logger.info('User deleted', { userId: req.params.id, username: user.username });
+
+    res.json({ success: true, message: 'User deleted' });
   } catch (error) {
-    logger.error('Delete user failed', { error: error.message });
+    logger.error('Failed to delete user', { error: error.message });
     res.status(500).json({ success: false, error: 'Failed to delete user' });
   }
 });

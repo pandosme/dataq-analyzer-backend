@@ -4,13 +4,13 @@ import pathsRouter from './paths.js';
 import configRouter from './config.js';
 import authRouter from './auth.js';
 import usersRouter from './users.js';
-import { authenticate, requireAdmin } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 import * as configService from '../services/configService.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
 
-// Public routes (no authentication required)
+// Auth routes
 router.use('/auth', authRouter);
 
 // Public config status endpoint (needed for initial setup check)
@@ -50,10 +50,12 @@ router.post('/config/mongodb/connect', async (req, res) => {
   }
 });
 
-// Protected routes (authentication required)
-router.use('/cameras', authenticate, camerasRouter);
-router.use('/paths', authenticate, pathsRouter);
-router.use('/config', authenticate, requireAdmin, configRouter);
+// API routes (admin UI is password-protected)
+router.use('/cameras', camerasRouter);
+router.use('/paths', pathsRouter);
+router.use('/config', configRouter);
+
+// User routes (requires JWT authentication for client apps)
 router.use('/users', authenticate, usersRouter);
 
 // Health check endpoint

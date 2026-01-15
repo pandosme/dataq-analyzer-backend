@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
-import Setup from './components/Setup';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import CameraManagement from './components/CameraManagement';
 import ConnectionStatus from './components/ConnectionStatus';
-import { authAPI } from './services/api';
 import { useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -18,37 +16,11 @@ const ADMIN_SECTIONS = [
 ];
 
 function App() {
-  const { isAuthenticated, loading: authLoading, user, isAdmin, logout } = useAuth();
-  const [setupRequired, setSetupRequired] = useState(null);
-  const [checkingSetup, setCheckingSetup] = useState(true);
+  const { isAuthenticated, loading, logout } = useAuth();
   const [currentSection, setCurrentSection] = useState('dashboard');
 
-  // Check if initial setup is required
-  useEffect(() => {
-    const checkSetup = async () => {
-      try {
-        const response = await authAPI.checkSetup();
-        setSetupRequired(response.data.setupRequired);
-      } catch (err) {
-        console.error('Failed to check setup status:', err);
-        setSetupRequired(true);
-      } finally {
-        setCheckingSetup(false);
-      }
-    };
-
-    checkSetup();
-  }, []);
-
-  // Reset setupRequired when user becomes authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      setSetupRequired(false);
-    }
-  }, [isAuthenticated]);
-
-  // Show loading state while checking setup and auth
-  if (checkingSetup || authLoading) {
+  // Show loading state
+  if (loading) {
     return (
       <div className="app-loading">
         <h2>Loading...</h2>
@@ -56,32 +28,16 @@ function App() {
     );
   }
 
-  // Show setup page if setup is required
-  if (setupRequired) {
-    return <Setup />;
-  }
-
   // Show login page if not authenticated
   if (!isAuthenticated) {
     return <Login />;
-  }
-
-  // Require admin role
-  if (!isAdmin()) {
-    return (
-      <div className="app-loading">
-        <h2>Access Denied</h2>
-        <p>This admin interface requires administrator privileges.</p>
-        <button onClick={logout} className="logout-btn">Logout</button>
-      </div>
-    );
   }
 
   return (
     <div className="app admin-app">
       <header className="app-header">
         <div className="header-left">
-          <h1>DataQ-Management</h1>
+          <h1>DataQ Management</h1>
           <nav className="app-navigation">
             {ADMIN_SECTIONS.map((section) => (
               <button
@@ -100,12 +56,9 @@ function App() {
         <div className="header-right">
           <ConnectionStatus />
           <div className="header-actions">
-            <div className="user-menu">
-              <span className="username">{user?.username} (Admin)</span>
-              <button className="logout-btn" onClick={logout} title="Logout">
-                Logout
-              </button>
-            </div>
+            <button className="logout-btn" onClick={logout} title="Logout">
+              Logout
+            </button>
           </div>
         </div>
       </header>

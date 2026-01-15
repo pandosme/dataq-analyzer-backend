@@ -349,6 +349,13 @@ async function handleMQTTMessage(topic, payload) {
       return;
     }
 
+    // Update lastSeen timestamp for this camera (regardless of filters)
+    await Camera.findOneAndUpdate(
+      { serialNumber },
+      { $set: { 'deviceStatus.lastSeen': new Date() } },
+      { upsert: false }
+    );
+
     // Apply camera filters
     if (!shouldSavePath(parsedData, camera.filters)) {
       logger.debug('Path filtered out by camera filters', {

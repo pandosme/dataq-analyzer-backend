@@ -1,0 +1,21 @@
+# DataQ Analyzer - Docker Compose
+#
+# Uses MongoDB and MQTT from .env (external services)
+#
+# Usage:
+#   docker compose up -d --build
+#   docker compose logs -f
+#   docker compose down
+
+services:
+  dataq:
+    build: .
+    container_name: dataq-analyzer
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ./logs:/app/logs

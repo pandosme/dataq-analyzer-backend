@@ -12,67 +12,31 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Initialize from localStorage
+  // Check localStorage on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('authUser');
-
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Failed to parse stored user data:', error);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('authUser');
-      }
-    }
+    const authenticated = localStorage.getItem('authenticated') === 'true';
+    setIsAuthenticated(authenticated);
     setLoading(false);
   }, []);
 
-  const login = (userData, authToken) => {
-    setUser(userData);
-    setToken(authToken);
-    localStorage.setItem('authToken', authToken);
-    localStorage.setItem('authUser', JSON.stringify(userData));
+  const login = () => {
+    setIsAuthenticated(true);
+    localStorage.setItem('authenticated', 'true');
   };
 
   const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('authUser');
-  };
-
-  const updateUser = (userData) => {
-    setUser(userData);
-    localStorage.setItem('authUser', JSON.stringify(userData));
-  };
-
-  const isAdmin = () => {
-    return user?.role === 'admin';
-  };
-
-  const isAuthorizedForCamera = (cameraId) => {
-    if (!user) return false;
-    if (user.role === 'admin') return true;
-    return user.authorizedCameras?.includes(cameraId);
+    setIsAuthenticated(false);
+    localStorage.removeItem('authenticated');
   };
 
   const value = {
-    user,
-    token,
+    isAuthenticated,
     loading,
     login,
     logout,
-    updateUser,
-    isAuthenticated: !!token && !!user,
-    isAdmin,
-    isAuthorizedForCamera,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

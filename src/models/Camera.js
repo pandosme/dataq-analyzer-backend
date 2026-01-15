@@ -20,6 +20,11 @@ const cameraSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Camera model (e.g., "AXIS Q3517-LVE", "AXIS P1448-LE")
+    model: {
+      type: String,
+      default: '',
+    },
     location: {
       type: String,
       default: '',

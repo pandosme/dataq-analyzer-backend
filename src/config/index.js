@@ -16,7 +16,7 @@ function validateEnv(required) {
 
 // Validate required configuration
 // MONGODB_URI is optional - if not provided, will be built from components
-validateEnv(['PORT', 'JWT_SECRET']);
+validateEnv(['PORT']);
 
 /**
  * Build MongoDB URI from environment variables
@@ -85,13 +85,11 @@ export const mqttConfig = {
  * Authentication configuration
  */
 export const authConfig = {
+  // Simple password for admin UI (plain text in .env)
+  adminPassword: process.env.ADMIN_PASSWORD || '',
+  // JWT for API clients (if needed later)
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  bcryptRounds: 10,
-  // Environment-based admin account
-  adminUsername: process.env.ADMIN_USERNAME,
-  adminEmail: process.env.ADMIN_EMAIL,
-  adminPasswordHash: process.env.ADMIN_PASSWORD_HASH,
 };
 
 /**

@@ -229,7 +229,7 @@
 .device-metric {
   color: #555;
   font-size: 13px;
-  text-align: right;
+  text-align: left;
 }
 
 .device-lastseen {
@@ -270,7 +270,7 @@
 .event-metric {
   color: #555;
   font-size: 13px;
-  text-align: right;
+  text-align: left;
 }
 
 /* Loading and Error States */

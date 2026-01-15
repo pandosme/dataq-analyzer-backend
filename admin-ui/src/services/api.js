@@ -9,31 +9,6 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor to include auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Add response interceptor to handle 401 errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Clear auth data on 401 (let components handle the redirect)
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('authUser');
-    }
-    return Promise.reject(error);
-  }
-);
-
 // Cameras API
 export const camerasAPI = {
   getAll: async (enabledOnly = false) => {
@@ -103,55 +78,28 @@ export const pathsAPI = {
 
 // Authentication API
 export const authAPI = {
-  // Check if setup is required (no users exist)
-  checkSetup: async () => {
-    const response = await api.get('/auth/setup-check');
+  // Simple password login (for admin UI)
+  login: async (password) => {
+    const response = await api.post('/auth/login', { password });
     return response.data;
   },
 
-  // Create initial admin user
-  setup: async (userData) => {
-    const response = await api.post('/auth/setup', userData);
-    return response.data;
-  },
-
-  // Login
-  login: async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
-    return response.data;
-  },
-
-  // Get current user
-  me: async () => {
-    const response = await api.get('/auth/me');
-    return response.data;
-  },
-
-  // Get all users (admin only)
+  // User management
   getAllUsers: async () => {
     const response = await api.get('/auth/users');
     return response.data;
   },
 
-  // Get user by ID
-  getUserById: async (id) => {
-    const response = await api.get(`/auth/users/${id}`);
-    return response.data;
-  },
-
-  // Create new user (admin only)
   createUser: async (userData) => {
-    const response = await api.post('/auth/register', userData);
+    const response = await api.post('/auth/users', userData);
     return response.data;
   },
 
-  // Update user (admin only)
   updateUser: async (id, userData) => {
     const response = await api.put(`/auth/users/${id}`, userData);
     return response.data;
   },
 
-  // Delete user (admin only)
   deleteUser: async (id) => {
     const response = await api.delete(`/auth/users/${id}`);
     return response.data;

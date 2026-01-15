@@ -12,7 +12,18 @@ DataQ Analyzer is a full-stack application for collecting and analyzing path/flo
 - **VAPIX Integration** - Direct communication with local Axis cameras
 - **Video Playback** - On-demand video retrieval from recording servers (VideoX, Milestone, ACS)
 
+## Technical Notes
+
+- **ES Modules**: Project uses ES modules (`"type": "module"` in package.json). Use `import`/`export` syntax.
+- **No Test Suite**: Tests are not yet implemented. See BACKLOG.md for test coverage requirements.
+
 ## Common Development Commands
+
+### Initial Setup
+```bash
+npm install              # Install backend dependencies
+cd admin-ui && npm install  # Install admin UI dependencies (separate package.json)
+```
 
 ### Backend Development
 ```bash
@@ -20,6 +31,7 @@ npm run dev              # Start backend with nodemon (auto-reload)
 npm start                # Start backend in production mode
 npm run lint             # Run ESLint
 npm run lint:fix         # Auto-fix linting issues
+npm run format           # Format code with Prettier
 ```
 
 ### Admin UI Development

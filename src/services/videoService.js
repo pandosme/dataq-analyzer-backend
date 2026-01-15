@@ -133,6 +133,7 @@ async function getVideoFromVideoX(camera, startTime, endTime, playbackConfig) {
         cameraId: camera.serialNumber,
         startTime: startTimeEpoch,
         duration: duration,
+        token: playbackConfig.apiKey, // Also pass as query param for compatibility
       },
       responseType: 'stream',
       timeout: 60000, // Increased timeout for video processing
