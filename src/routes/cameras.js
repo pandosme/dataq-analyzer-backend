@@ -4,8 +4,10 @@ import * as vapixService from '../services/vapixService.js';
 import { Camera } from '../models/index.js';
 import { resubscribeToCameras } from '../mqtt/client.js';
 import logger from '../utils/logger.js';
+import { authenticate, requireEditor } from '../middleware/auth.js';
 
 const router = express.Router();
+const editorGuard = [authenticate, requireEditor];
 
 /**
  * GET /api/cameras
@@ -44,7 +46,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/cameras
  * Create a new camera (admin only)
  */
-router.post('/', async (req, res) => {
+router.post('/', ...editorGuard, async (req, res) => {
   try {
     const {
       name,
@@ -140,7 +142,7 @@ router.post('/', async (req, res) => {
  * PUT /api/cameras/:id
  * Update a camera (admin or camera owner)
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', ...editorGuard, async (req, res) => {
   try {
     const allowedFields = [
       'name',
@@ -230,7 +232,7 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/cameras/:id
  * Delete a camera (admin only)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', ...editorGuard, async (req, res) => {
   try {
     const deleted = await cameraService.deleteCamera(req.params.id);
     if (!deleted) {
@@ -267,7 +269,7 @@ router.get('/:serialNumber/snapshot', async (req, res) => {
  * POST /api/cameras/:id/refresh-snapshot
  * Refresh snapshot for local camera (admin only)
  */
-router.post('/:id/refresh-snapshot', async (req, res) => {
+router.post('/:id/refresh-snapshot', ...editorGuard, async (req, res) => {
   try {
     const camera = await Camera.findById(req.params.id);
     if (!camera) {
@@ -296,7 +298,7 @@ router.post('/:id/refresh-snapshot', async (req, res) => {
  * POST /api/cameras/test-vapix
  * Test VAPIX connection (admin only)
  */
-router.post('/test-vapix', async (req, res) => {
+router.post('/test-vapix', ...editorGuard, async (req, res) => {
   try {
     const { ipAddress, username, password } = req.body;
 
@@ -324,7 +326,7 @@ router.post('/test-vapix', async (req, res) => {
  * POST /api/cameras/fetch-device-info
  * Fetch device info from local camera (admin only)
  */
-router.post('/fetch-device-info', async (req, res) => {
+router.post('/fetch-device-info', ...editorGuard, async (req, res) => {
   try {
     const { ipAddress, username, password } = req.body;
 

@@ -3,9 +3,13 @@ import * as counterSetsService from '../services/counterSetsService.js';
 import * as countersService from '../services/countersService.js';
 import retentionService from '../services/retentionService.js';
 import { getMQTTClient } from '../mqtt/client.js';
+import { authenticate, requireEditor } from '../middleware/auth.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
+
+// All write operations require authenticated non-viewer user
+const editorGuard = [authenticate, requireEditor];
 
 // Literal routes MUST come before dynamic /:id routes in Express
 
@@ -21,7 +25,7 @@ router.get('/', async (req, res) => {
 });
 
 /** POST /api/counters — create counter set + async backfill */
-router.post('/', async (req, res) => {
+router.post('/', ...editorGuard, async (req, res) => {
   try {
     const mqttClient = getMQTTClient();
     const doc = await counterSetsService.create(req.body, mqttClient);
@@ -61,7 +65,7 @@ router.get('/cameras/:serial/series', async (req, res) => {
   }
 });
 
-router.post('/cleanup', async (req, res) => {
+router.post('/cleanup', ...editorGuard, async (req, res) => {
   try {
     const result = await retentionService.runRetentionCleanup();
     res.json({ success: true, data: result });
@@ -86,7 +90,7 @@ router.get('/:id', async (req, res) => {
 });
 
 /** PUT /api/counters/:id */
-router.put('/:id', async (req, res) => {
+router.put('/:id', ...editorGuard, async (req, res) => {
   try {
     const doc = await counterSetsService.update(req.params.id, req.body);
     if (!doc) return res.status(404).json({ success: false, error: 'Counter set not found' });
@@ -98,7 +102,7 @@ router.put('/:id', async (req, res) => {
 });
 
 /** DELETE /api/counters/:id */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', ...editorGuard, async (req, res) => {
   try {
     const mqttClient = getMQTTClient();
     const deleted = await counterSetsService.deleteById(req.params.id, mqttClient);
@@ -123,7 +127,7 @@ router.get('/:id/backfill', async (req, res) => {
 });
 
 /** POST /api/counters/:id/backfill — trigger backfill (resets counters then recounts) */
-router.post('/:id/backfill', async (req, res) => {
+router.post('/:id/backfill', ...editorGuard, async (req, res) => {
   try {
     const result = await counterSetsService.startBackfill(req.params.id);
     res.json({ success: true, data: result });
@@ -134,7 +138,7 @@ router.post('/:id/backfill', async (req, res) => {
 });
 
 /** POST /api/counters/:id/reset — reset all counters */
-router.post('/:id/reset', async (req, res) => {
+router.post('/:id/reset', ...editorGuard, async (req, res) => {
   try {
     const doc = await counterSetsService.resetAll(req.params.id);
     if (!doc) return res.status(404).json({ success: false, error: 'Counter set not found' });
@@ -146,7 +150,7 @@ router.post('/:id/reset', async (req, res) => {
 });
 
 /** POST /api/counters/:id/counters/:counterId/reset — reset one counter (counterId URL-encoded) */
-router.post('/:id/counters/:counterId/reset', async (req, res) => {
+router.post('/:id/counters/:counterId/reset', ...editorGuard, async (req, res) => {
   try {
     const counterId = decodeURIComponent(req.params.counterId);
     const doc = await counterSetsService.resetOne(req.params.id, counterId);

@@ -1,8 +1,12 @@
 import express from 'express';
 import * as configService from '../services/configService.js';
+import { authenticate, requireEditor } from '../middleware/auth.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
+
+// All write operations require authenticated non-viewer user
+const editorGuard = [authenticate, requireEditor];
 
 /**
  * GET /api/config
@@ -43,7 +47,7 @@ router.get('/', async (req, res) => {
  * PUT /api/config
  * Update full configuration
  */
-router.put('/', async (req, res) => {
+router.put('/', ...editorGuard, async (req, res) => {
   try {
     const { dateFormat, playbackConfig, ...otherSettings } = req.body;
 
@@ -122,7 +126,7 @@ router.get('/mqtt', async (req, res) => {
  * PUT /api/config/mqtt
  * Update MQTT configuration
  */
-router.put('/mqtt', async (req, res) => {
+router.put('/mqtt', ...editorGuard, async (req, res) => {
   try {
     const config = await configService.updateMqttConfig(req.body);
     res.json({ success: true, data: config });
@@ -136,7 +140,7 @@ router.put('/mqtt', async (req, res) => {
  * POST /api/config/mqtt/test
  * Test MQTT connection with provided settings
  */
-router.post('/mqtt/test', async (req, res) => {
+router.post('/mqtt/test', ...editorGuard, async (req, res) => {
   try {
     const {
       brokerUrl: rawBrokerUrl,
@@ -185,7 +189,7 @@ router.post('/mqtt/test', async (req, res) => {
  * POST /api/config/mqtt/reconnect
  * Reconnect MQTT with current database configuration
  */
-router.post('/mqtt/reconnect', async (req, res) => {
+router.post('/mqtt/reconnect', ...editorGuard, async (req, res) => {
   try {
     const result = await configService.reconnectMqtt();
     res.json(result);
@@ -213,7 +217,7 @@ router.get('/system', async (req, res) => {
  * PUT /api/config/system
  * Update system configuration
  */
-router.put('/system', async (req, res) => {
+router.put('/system', ...editorGuard, async (req, res) => {
   try {
     const config = await configService.updateSystemConfig(req.body);
     res.json({ success: true, data: config });
@@ -241,7 +245,7 @@ router.get('/mongodb', async (req, res) => {
  * PUT /api/config/mongodb
  * Update MongoDB configuration
  */
-router.put('/mongodb', async (req, res) => {
+router.put('/mongodb', ...editorGuard, async (req, res) => {
   try {
     const config = await configService.updateMongoConfig(req.body);
     res.json({ success: true, data: config });
@@ -255,7 +259,7 @@ router.put('/mongodb', async (req, res) => {
  * POST /api/config/mongodb/test
  * Test MongoDB connection
  */
-router.post('/mongodb/test', async (req, res) => {
+router.post('/mongodb/test', ...editorGuard, async (req, res) => {
   try {
     const { connectionString } = req.body;
 
@@ -278,7 +282,7 @@ router.post('/mongodb/test', async (req, res) => {
  * POST /api/config/mongodb/test-config
  * Test MongoDB connection with configuration object
  */
-router.post('/mongodb/test-config', async (req, res) => {
+router.post('/mongodb/test-config', ...editorGuard, async (req, res) => {
   try {
     const connectionString = configService.buildMongoConnectionString(req.body);
     const result = await configService.testMongoConnection(connectionString);
@@ -293,7 +297,7 @@ router.post('/mongodb/test-config', async (req, res) => {
  * POST /api/config/playback/test
  * Test Playback/VMS server connection
  */
-router.post('/playback/test', async (req, res) => {
+router.post('/playback/test', ...editorGuard, async (req, res) => {
   try {
     const { type, serverUrl, apiKey, useTls } = req.body;
 

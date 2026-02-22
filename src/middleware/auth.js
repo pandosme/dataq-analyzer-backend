@@ -35,6 +35,19 @@ export async function authenticate(req, res, next) {
       return next();
     }
 
+    // Check if this is the environment-based viewer
+    if (decoded.id === 'env-viewer') {
+      req.user = {
+        _id: 'env-viewer',
+        username: decoded.username,
+        role: 'viewer',
+        enabled: true,
+        isEnvViewer: true,
+        toObject: function() { return this; },
+      };
+      return next();
+    }
+
     // Get user from database
     const user = await User.findById(decoded.id).select('-password');
     if (!user) {
@@ -77,6 +90,28 @@ export function requireAdmin(req, res, next) {
     return res.status(403).json({
       success: false,
       error: 'Admin access required',
+    });
+  }
+
+  next();
+}
+
+/**
+ * Middleware to require editor role (admin or user, not viewer)
+ * Viewers can only read data and manage their own preferences.
+ */
+export function requireEditor(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication required',
+    });
+  }
+
+  if (req.user.role === 'viewer') {
+    return res.status(403).json({
+      success: false,
+      error: 'Insufficient permissions — viewer accounts are read-only',
     });
   }
 
@@ -156,6 +191,15 @@ export async function optionalAuth(req, res, next) {
           isEnvAdmin: true,
           toObject: function() { return this; },
         };
+      } else if (decoded.id === 'env-viewer') {
+        req.user = {
+          _id: 'env-viewer',
+          username: decoded.username,
+          role: 'viewer',
+          enabled: true,
+          isEnvViewer: true,
+          toObject: function() { return this; },
+        };
       } else {
         const user = await User.findById(decoded.id).select('-password');
         if (user && user.enabled) {
@@ -172,6 +216,7 @@ export async function optionalAuth(req, res, next) {
 export default {
   authenticate,
   requireAdmin,
+  requireEditor,
   checkCameraAccess,
   optionalAuth,
 };

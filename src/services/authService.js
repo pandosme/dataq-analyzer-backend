@@ -109,6 +109,24 @@ export async function login(username, password) {
       }
     }
 
+    // Check environment-based viewer account (plaintext comparison)
+    if (authConfig.viewerUsername && username === authConfig.viewerUsername) {
+      if (password === authConfig.viewerPassword) {
+        logger.info('Viewer logged in (env-based)', { username: authConfig.viewerUsername });
+
+        const viewerUser = {
+          _id: 'env-viewer',
+          username: authConfig.viewerUsername,
+          role: 'viewer',
+          enabled: true,
+          isEnvViewer: true,
+        };
+
+        const token = generateToken(viewerUser);
+        return { user: viewerUser, token };
+      }
+    }
+
     // Fall back to database users
     const user = await User.findOne({
       $or: [{ username }, { email: username }],

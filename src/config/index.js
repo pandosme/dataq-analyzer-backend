@@ -87,6 +87,8 @@ export const mqttConfig = {
 export const authConfig = {
   adminUsername: process.env.ADMIN_USERNAME || 'admin',
   adminPassword: process.env.ADMIN_PASSWORD || 'admin',
+  viewerUsername: process.env.VIEWER_USERNAME || '',
+  viewerPassword: process.env.VIEWER_PASSWORD || '',
   jwtSecret: getJwtSecret(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 };

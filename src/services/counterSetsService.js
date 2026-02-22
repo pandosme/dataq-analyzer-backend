@@ -241,7 +241,8 @@ async function runBackfill(counterSetId) {
       finalCS.lastDayProcessed = new Date(latestDay.timestamp).toISOString().slice(0, 10);
     }
 
-    // Count distinct days from processed path events
+    // Mark backfill complete
+    finalCS.backfill.status = 'complete';
     finalCS.backfill.processedPaths = processed;
     finalCS.backfill.completedAt = new Date();
     await finalCS.save();
@@ -404,10 +405,7 @@ export async function update(id, body) {
 
     await cs.save();
 
-    // Trigger async backfill
-    setImmediate(() => runBackfill(cs._id));
-
-    logger.info('CounterSet zones updated — recount triggered', { id });
+    logger.info('CounterSet zones updated — counters reset', { id });
     return cs.toObject();
   }
 

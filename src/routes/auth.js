@@ -2,8 +2,10 @@ import express from 'express';
 import { authConfig } from '../config/index.js';
 import * as authService from '../services/authService.js';
 import logger from '../utils/logger.js';
+import { authenticate, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
+const adminGuard = [authenticate, requireAdmin];
 
 /**
  * POST /api/auth/login
@@ -75,7 +77,7 @@ router.post('/client-login', async (req, res) => {
 /**
  * GET /api/auth/users
  */
-router.get('/users', async (req, res) => {
+router.get('/users', ...adminGuard, async (req, res) => {
   try {
     const users = await authService.getAllUsers();
     res.json({ success: true, data: users });
@@ -88,7 +90,7 @@ router.get('/users', async (req, res) => {
 /**
  * POST /api/auth/users
  */
-router.post('/users', async (req, res) => {
+router.post('/users', ...adminGuard, async (req, res) => {
   try {
     const result = await authService.register(req.body);
     res.status(201).json({ success: true, data: result.user });
@@ -104,7 +106,7 @@ router.post('/users', async (req, res) => {
 /**
  * PUT /api/auth/users/:id
  */
-router.put('/users/:id', async (req, res) => {
+router.put('/users/:id', ...adminGuard, async (req, res) => {
   try {
     const user = await authService.updateUser(req.params.id, req.body);
     res.json({ success: true, data: user });
@@ -117,7 +119,7 @@ router.put('/users/:id', async (req, res) => {
 /**
  * DELETE /api/auth/users/:id
  */
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', ...adminGuard, async (req, res) => {
   try {
     const deleted = await authService.deleteUser(req.params.id);
     if (!deleted) {
