@@ -261,6 +261,7 @@ function UserManagement({ onClose, inline = false }) {
                 <select id="role" name="role" value={formData.role} onChange={handleInputChange}>
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
+                  <option value="viewer">Viewer</option>
                 </select>
               </div>
 
