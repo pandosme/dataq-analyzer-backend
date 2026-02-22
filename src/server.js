@@ -1,11 +1,13 @@
 import http from 'http';
 import { createApp } from './app.js';
 import { connectDB, setupDBEventHandlers } from './db/connection.js';
-import { connectMQTT } from './mqtt/client.js';
-import { serverConfig, mqttConfig } from './config/index.js';
+import { connectMQTT, getMQTTClient } from './mqtt/client.js';
+import { serverConfig } from './config/index.js';
 import logger from './utils/logger.js';
 import { Camera } from './models/index.js';
 import { setupWebSocketServer } from './websocket/index.js';
+import retentionService from './services/retentionService.js';
+import { initCounterSets } from './services/counterSetsService.js';
 
 /**
  * Migrate existing cameras to add default filters if missing
@@ -87,11 +89,26 @@ async function startServer() {
     // Connect to MQTT broker
     logger.info('Connecting to MQTT broker');
     try {
-      await connectMQTT(mqttConfig);
+      await connectMQTT(); // loads MQTT config from database
     } catch (error) {
       logger.warn('Failed to connect to MQTT broker (will continue without MQTT)', {
         error: error.message,
       });
+    }
+
+    // Initialize counter sets (restart MQTT publish timers)
+    try {
+      const mqttClient = getMQTTClient();
+      await initCounterSets(mqttClient);
+    } catch (err) {
+      logger.warn('Failed to initialize counter sets', { error: err.message });
+    }
+
+    // Schedule daily retention cleanup at midnight
+    try {
+      retentionService.scheduleDailyCleanup();
+    } catch (err) {
+      logger.warn('Failed to schedule retention cleanup', { error: err.message });
     }
 
     // Graceful shutdown handler

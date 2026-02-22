@@ -11,8 +11,8 @@ const api = axios.create({
 
 // Cameras API
 export const camerasAPI = {
-  getAll: async (enabledOnly = false) => {
-    const response = await api.get('/cameras', { params: { enabled: enabledOnly } });
+  getAll: async (enabledOnly = false, includeStats = false) => {
+    const response = await api.get('/cameras', { params: { enabled: enabledOnly, stats: includeStats } });
     return response.data;
   },
 
@@ -228,6 +228,30 @@ export const playbackAPI = {
     }
 
     return null;
+  },
+};
+
+// Counters API
+export const countersAPI = {
+  // Get per-camera path counts. Pass `since` ISO string to limit window.
+  getCameraCounts: async (since) => {
+    const params = since ? { since } : {};
+    const response = await api.get('/counters/cameras', { params });
+    return response.data;
+  },
+
+  // Get time-bucketed series for one camera
+  getCameraSeries: async (serial, interval = 'day', rangeDays = 30) => {
+    const response = await api.get(`/counters/cameras/${serial}/series`, {
+      params: { interval, rangeDays },
+    });
+    return response.data;
+  },
+
+  // Manually trigger retention cleanup (admin only)
+  triggerCleanup: async () => {
+    const response = await api.post('/counters/cleanup');
+    return response.data;
   },
 };
 

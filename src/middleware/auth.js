@@ -1,6 +1,5 @@
 import { verifyToken } from '../services/authService.js';
 import { User, Camera } from '../models/index.js';
-import { authConfig } from '../config/index.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -18,18 +17,16 @@ export async function authenticate(req, res, next) {
       });
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token = authHeader.substring(7);
 
     // Verify token
     const decoded = verifyToken(token);
 
     // Check if this is the environment-based admin
     if (decoded.id === 'env-admin') {
-      // Create virtual admin user object
       req.user = {
         _id: 'env-admin',
         username: decoded.username,
-        email: decoded.email,
         role: decoded.role,
         enabled: true,
         isEnvAdmin: true,
@@ -54,7 +51,6 @@ export async function authenticate(req, res, next) {
       });
     }
 
-    // Attach user to request
     req.user = user;
     next();
   } catch (error) {
@@ -89,8 +85,6 @@ export function requireAdmin(req, res, next) {
 
 /**
  * Middleware to check camera authorization
- * Regular users can only access cameras they're authorized for
- * Admins can access all cameras
  */
 export async function checkCameraAccess(req, res, next) {
   try {
@@ -101,21 +95,16 @@ export async function checkCameraAccess(req, res, next) {
       });
     }
 
-    // Admins have access to all cameras
     if (req.user.role === 'admin') {
       return next();
     }
 
-    // Get camera ID from request (params, query, or body)
     const cameraId = req.params.id || req.query.cameraId || req.body.cameraId;
 
     if (!cameraId) {
-      // If no specific camera is requested, continue
-      // (will be filtered by service layer)
       return next();
     }
 
-    // Check if user is authorized for this camera
     const camera = await Camera.findOne({
       $or: [{ _id: cameraId }, { cameraId: cameraId }],
     });
@@ -127,7 +116,6 @@ export async function checkCameraAccess(req, res, next) {
       });
     }
 
-    // Check if user has access to this camera
     const hasAccess = req.user.authorizedCameras.some(
       (cam) => cam.toString() === camera._id.toString()
     );
@@ -151,7 +139,6 @@ export async function checkCameraAccess(req, res, next) {
 
 /**
  * Optional authentication middleware
- * Authenticates if token is present, but doesn't require it
  */
 export async function optionalAuth(req, res, next) {
   try {
@@ -160,12 +147,10 @@ export async function optionalAuth(req, res, next) {
       const token = authHeader.substring(7);
       const decoded = verifyToken(token);
 
-      // Check if this is the environment-based admin
       if (decoded.id === 'env-admin') {
         req.user = {
           _id: 'env-admin',
           username: decoded.username,
-          email: decoded.email,
           role: decoded.role,
           enabled: true,
           isEnvAdmin: true,

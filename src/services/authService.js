@@ -13,7 +13,6 @@ export function generateToken(user) {
   const payload = {
     id: user._id,
     username: user.username,
-    email: user.email,
     role: user.role,
   };
 
@@ -86,39 +85,27 @@ export async function register(userData) {
 
 /**
  * Login user
- * @param {string} username - Username or email
+ * @param {string} username - Username
  * @param {string} password - Password
  * @returns {Promise<Object>} User and token
  */
 export async function login(username, password) {
   try {
-    // First check if this is the environment-based admin account
-    if (authConfig.adminUsername &&
-        (username === authConfig.adminUsername || username === authConfig.adminEmail)) {
-
-      // Verify password against hash in environment
-      const isValid = await bcrypt.compare(password, authConfig.adminPasswordHash);
-
-      if (isValid) {
+    // Check environment-based admin account (plaintext comparison)
+    if (authConfig.adminUsername && username === authConfig.adminUsername) {
+      if (password === authConfig.adminPassword) {
         logger.info('Admin logged in (env-based)', { username: authConfig.adminUsername });
 
-        // Create a virtual admin user object
         const adminUser = {
           _id: 'env-admin',
           username: authConfig.adminUsername,
-          email: authConfig.adminEmail,
           role: 'admin',
           enabled: true,
           isEnvAdmin: true,
         };
 
-        // Generate token
         const token = generateToken(adminUser);
-
-        return {
-          user: adminUser,
-          token,
-        };
+        return { user: adminUser, token };
       }
     }
 
@@ -131,30 +118,22 @@ export async function login(username, password) {
       throw new Error('Invalid credentials');
     }
 
-    // Check if user is enabled
     if (!user.enabled) {
       throw new Error('Account is disabled');
     }
 
-    // Verify password
     const isValid = await user.comparePassword(password);
     if (!isValid) {
       throw new Error('Invalid credentials');
     }
 
-    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
     logger.info('User logged in', { username: user.username });
 
-    // Generate token
     const token = generateToken(user);
-
-    return {
-      user: user.toSafeObject(),
-      token,
-    };
+    return { user: user.toSafeObject(), token };
   } catch (error) {
     logger.error('Login failed', { error: error.message, username });
     throw error;
@@ -163,8 +142,6 @@ export async function login(username, password) {
 
 /**
  * Get user by ID
- * @param {string} userId - User ID
- * @returns {Promise<Object>} User object
  */
 export async function getUserById(userId) {
   try {
@@ -181,15 +158,12 @@ export async function getUserById(userId) {
 
 /**
  * Check if any users exist in the system
- * @returns {Promise<boolean>}
  */
 export async function hasUsers() {
   try {
-    // If environment-based admin exists, setup is not required
-    if (authConfig.adminUsername && authConfig.adminPasswordHash) {
+    if (authConfig.adminUsername && authConfig.adminPassword) {
       return true;
     }
-
     const count = await User.countDocuments();
     return count > 0;
   } catch (error) {
@@ -200,7 +174,6 @@ export async function hasUsers() {
 
 /**
  * Check if any admin users exist
- * @returns {Promise<boolean>}
  */
 export async function hasAdmins() {
   try {
@@ -214,8 +187,6 @@ export async function hasAdmins() {
 
 /**
  * Create initial admin user (only if no users exist)
- * @param {Object} adminData - Admin user data
- * @returns {Promise<Object>}
  */
 export async function createInitialAdmin(adminData) {
   try {
@@ -239,22 +210,19 @@ export async function createInitialAdmin(adminData) {
 
 /**
  * Get all users (admin only)
- * @returns {Promise<Array>}
  */
 export async function getAllUsers() {
   try {
     const users = await User.find().select('-password').sort({ createdAt: -1 }).lean();
 
-    // If env-based admin exists, add it to the list
-    if (authConfig.adminUsername && authConfig.adminPasswordHash) {
+    if (authConfig.adminUsername && authConfig.adminPassword) {
       const envAdmin = {
         _id: 'env-admin',
         username: authConfig.adminUsername,
-        email: authConfig.adminEmail,
         role: 'admin',
         enabled: true,
         isEnvAdmin: true,
-        createdAt: new Date(0), // Epoch time to sort it first
+        createdAt: new Date(0),
       };
       return [envAdmin, ...users];
     }
@@ -263,13 +231,11 @@ export async function getAllUsers() {
   } catch (error) {
     logger.error('Failed to get users', { error: error.message });
 
-    // If database query fails but env-based admin exists, return just the env admin
-    if (authConfig.adminUsername && authConfig.adminPasswordHash) {
+    if (authConfig.adminUsername && authConfig.adminPassword) {
       logger.info('Database unavailable, returning env-based admin only');
       return [{
         _id: 'env-admin',
         username: authConfig.adminUsername,
-        email: authConfig.adminEmail,
         role: 'admin',
         enabled: true,
         isEnvAdmin: true,
@@ -283,9 +249,6 @@ export async function getAllUsers() {
 
 /**
  * Update user
- * @param {string} userId - User ID
- * @param {Object} updateData - Data to update
- * @returns {Promise<Object>}
  */
 export async function updateUser(userId, updateData) {
   try {
@@ -298,7 +261,6 @@ export async function updateUser(userId, updateData) {
       }
     });
 
-    // If password is being updated, hash it
     if (updateData.password) {
       const user = await User.findById(userId);
       user.password = updateData.password;
@@ -320,8 +282,6 @@ export async function updateUser(userId, updateData) {
 
 /**
  * Delete user
- * @param {string} userId - User ID
- * @returns {Promise<boolean>}
  */
 export async function deleteUser(userId) {
   try {

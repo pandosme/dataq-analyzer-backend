@@ -3,9 +3,10 @@ import { mqttConfig } from '../config/index.js';
 import { parseDataQMessage, isPathDataMessage } from '../dataq/parser.js';
 import { savePathEvent } from '../services/pathEventService.js';
 import { updateCameraSnapshotFromMQTT } from '../services/cameraService.js';
-import { Camera } from '../models/index.js';
+import { Camera, MqttConfig } from '../models/index.js';
 import logger from '../utils/logger.js';
 import { broadcastPathEvent } from '../websocket/index.js';
+import { processPathEvent as processCounterSets } from '../services/counterSetsService.js';
 
 let client = null;
 let isConnected = false;
@@ -85,31 +86,70 @@ async function subscribeToActiveCameras() {
  * @param {Object} config - Optional MQTT configuration override
  * @returns {Promise<mqtt.MqttClient>}
  */
-export async function connectMQTT(config = mqttConfig) {
+export async function connectMQTT(config = null) {
   if (client && isConnected) {
     logger.info('MQTT client already connected');
     return client;
   }
 
+  // Load config from DB if not explicitly provided
+  if (!config) {
+    try {
+      let dbConfig = await MqttConfig.findById('mqtt-config').lean();
+      if (!dbConfig) {
+        // Fallback: create from env
+        dbConfig = {
+          host: 'localhost',
+          port: 1883,
+          protocol: 'mqtt',
+          useTls: false,
+          rejectUnauthorized: true,
+          topicPrefix: mqttConfig.topicPrefix,
+        };
+      }
+      const proto = dbConfig.useTls ? 'mqtts' : (dbConfig.protocol || 'mqtt');
+      config = {
+        brokerUrl: `${proto}://${dbConfig.host}:${dbConfig.port}`,
+        username: dbConfig.username || null,
+        password: dbConfig.password || null,
+        useTls: dbConfig.useTls || false,
+        rejectUnauthorized: dbConfig.rejectUnauthorized !== false,
+        caCert: dbConfig.caCert || null,
+        clientCert: dbConfig.clientCert || null,
+        clientKey: dbConfig.clientKey || null,
+        topicPrefix: dbConfig.topicPrefix || 'dataq/#',
+        clientId: `dataq-analyzer-${Math.random().toString(16).substr(2, 8)}`,
+      };
+    } catch (dbErr) {
+      logger.warn('Could not load MQTT config from DB, using env defaults', { error: dbErr.message });
+      config = { ...mqttConfig };
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const options = {
-      clientId: config.clientId,
+      clientId: config.clientId || `dataq-analyzer-${Math.random().toString(16).substr(2, 8)}`,
       clean: true,
       reconnectPeriod: 5000,
       connectTimeout: 30 * 1000,
     };
 
-    // Add authentication if provided
-    if (config.username) {
-      options.username = config.username;
-    }
-    if (config.password) {
-      options.password = config.password;
+    // Authentication
+    if (config.username) options.username = config.username;
+    if (config.password) options.password = config.password;
+
+    // TLS options
+    if (config.useTls || (config.brokerUrl || '').startsWith('mqtts')) {
+      options.rejectUnauthorized = config.rejectUnauthorized !== false;
+      if (config.caCert)     options.ca   = config.caCert;
+      if (config.clientCert) options.cert = config.clientCert;
+      if (config.clientKey)  options.key  = config.clientKey;
     }
 
     logger.info('Connecting to MQTT broker', {
       broker: config.brokerUrl,
-      clientId: config.clientId,
+      clientId: options.clientId,
+      tls: config.useTls || false,
     });
 
     client = mqtt.connect(config.brokerUrl, options);
@@ -371,6 +411,9 @@ async function handleMQTTMessage(topic, payload) {
 
     // Broadcast to WebSocket clients
     broadcastPathEvent(savedEvent.toObject ? savedEvent.toObject() : savedEvent);
+
+    // Update zone-based counter sets in real-time
+    processCounterSets(savedEvent.toObject ? savedEvent.toObject() : savedEvent).catch(() => {});
 
     logger.debug('Path event processed and saved', {
       trackingId: parsedData.id,

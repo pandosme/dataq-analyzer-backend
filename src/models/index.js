@@ -4,3 +4,4 @@ export { default as MqttConfig } from './MqttConfig.js';
 export { default as PathEvent } from './PathEvent.js';
 export { default as SystemConfig } from './SystemConfig.js';
 export { default as User } from './User.js';
+export { default as CounterSet } from './CounterSet.js';

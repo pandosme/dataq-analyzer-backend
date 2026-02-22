@@ -138,12 +138,28 @@ router.put('/mqtt', async (req, res) => {
  */
 router.post('/mqtt/test', async (req, res) => {
   try {
-    const { brokerUrl, username, password } = req.body;
+    const {
+      brokerUrl: rawBrokerUrl,
+      host,
+      port,
+      protocol,
+      username,
+      password,
+      useTls,
+      rejectUnauthorized,
+      caCert,
+      clientCert,
+      clientKey,
+    } = req.body;
+
+    // Build broker URL from parts if not provided directly
+    const proto = useTls ? 'mqtts' : (protocol || 'mqtt');
+    const brokerUrl = rawBrokerUrl || (host ? `${proto}://${host}:${port || 1883}` : null);
 
     if (!brokerUrl) {
       return res.status(400).json({
         success: false,
-        error: 'Broker URL is required',
+        error: 'Broker host or URL is required',
       });
     }
 
@@ -151,6 +167,11 @@ router.post('/mqtt/test', async (req, res) => {
       brokerUrl,
       username,
       password,
+      useTls,
+      rejectUnauthorized,
+      caCert,
+      clientCert,
+      clientKey,
     });
 
     res.json({ success: result.success, message: result.message });

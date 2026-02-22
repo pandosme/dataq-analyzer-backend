@@ -4,6 +4,7 @@ import pathsRouter from './paths.js';
 import configRouter from './config.js';
 import authRouter from './auth.js';
 import usersRouter from './users.js';
+import countersRouter from './counters.js';
 import { authenticate } from '../middleware/auth.js';
 import * as configService from '../services/configService.js';
 import logger from '../utils/logger.js';
@@ -54,6 +55,7 @@ router.post('/config/mongodb/connect', async (req, res) => {
 router.use('/cameras', camerasRouter);
 router.use('/paths', pathsRouter);
 router.use('/config', configRouter);
+router.use('/counters', countersRouter);
 
 // User routes (requires JWT authentication for client apps)
 router.use('/users', authenticate, usersRouter);

@@ -22,6 +22,8 @@ pathEventSchema.index({ serial: 1, class: 1, timestamp: -1 });
 pathEventSchema.index({ timestamp: -1 });
 pathEventSchema.index({ class: 1 });
 pathEventSchema.index({ id: 1 }); // tracking id
+// Add compound index to support efficient per-camera deletion/aggregation by creation date
+pathEventSchema.index({ serial: 1, createdAt: 1 });
 
 const PathEvent = mongoose.model('PathEvent', pathEventSchema);
 

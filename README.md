@@ -1,308 +1,219 @@
-# DataQ Analyzer - Backend + Admin UI
+# DataQ Analyzer Backend
 
-Backend API server with embedded admin interface for managing users, cameras, and system configuration.
-
-## Overview
-
-This repository contains:
-- **Express.js Backend API** - REST API for DataQ camera data analysis
-- **Admin UI** - React-based admin dashboard served at `/admin`
-- **MongoDB Integration** - Data persistence with optional bundled or external MongoDB
-- **MQTT Client** - Real-time data collection from Axis DataQ cameras
-- **VAPIX Integration** - Direct communication with local Axis cameras
+Express.js backend with embedded admin UI for collecting and analyzing path/flow data from Axis DataQ cameras.
 
 ## Features
 
-- 🔐 JWT-based authentication with role-based access control
-- 👥 User management (admin only)
-- 📷 Camera management (local VAPIX and remote MQTT cameras)
-- ⚙️ System configuration (MQTT, MongoDB, playback integration)
-- 📊 Path event data collection and querying
-- 🐳 Docker deployment with optional MongoDB
+- **Admin UI** — React dashboard served at port 3303 (no separate frontend needed)
+- **REST API** — Full CRUD for cameras, path events, users, and configuration
+- **WebSocket** — Real-time streaming of path events to connected clients
+- **MQTT** — Collects DataQ messages from Axis cameras via MQTT broker
+- **MongoDB** — Stores path events, cameras, users, and system configuration
+- **JWT Authentication** — Role-based access (admin / user)
+- **Video Playback** — On-demand clip retrieval from VideoX, Milestone, or ACS
+
+---
+
+## Deployment
+
+### Prerequisites
+
+- Docker and Docker Compose
+
+### 1. Get the compose file
+
+Download [docker-compose.yml](docker-compose.yml) or create it with the following content:
+
+```yaml
+services:
+  backend:
+    image: pandosme/dataq-backend:latest
+    container_name: dataq-backend
+    ports:
+      - "3303:80"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/dataq-analyzer
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    container_name: dataq-mongodb
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+    driver: local
+```
+
+### 2. Set your credentials
+
+Edit `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `docker-compose.yml` before first start.
+
+### 3. Start
+
+```bash
+docker compose up -d
+```
+
+Access the admin UI at **http://\<host\>:3303**
+
+### 4. Configure MQTT
+
+Log in to the admin UI → **Settings → MQTT** and point it at your MQTT broker. The backend will subscribe to DataQ topics and begin collecting path events.
+
+---
+
+## Configuration
+
+All configuration is done through the admin UI. No `.env` file is required.
+
+| Setting | Where |
+|---|---|
+| Admin username & password | `docker-compose.yml` environment variables |
+| MQTT broker | Settings → MQTT |
+| MongoDB connection | Settings → MongoDB (or `MONGODB_URI` env var) |
+| Data retention | Settings → System (global default) or per-camera in Camera Management |
+| Video playback | Settings → Playback |
+| Date/time format | Settings → System |
+
+### Optional environment variables
+
+These can be added to `docker-compose.yml` to override defaults:
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `80` | Internal container port |
+| `MONGODB_URI` | — | Full MongoDB connection string |
+| `MQTT_BROKER_URL` | — | MQTT broker URL (e.g. `mqtt://broker:1883`) |
+| `JWT_SECRET` | auto-generated | JWT signing secret (auto-generated if omitted — tokens reset on container restart) |
+| `JWT_EXPIRES_IN` | `7d` | Token expiry |
+
+---
 
 ## Architecture
 
 ```
-Backend (Port 3000)
-├── /api/*           → REST API endpoints
-├── /admin/*         → Admin UI (React SPA)
-└── /                → API information
+Port 3303
+└── Express.js
+    ├── /api/*           REST API
+    ├── /ws/paths        WebSocket — real-time path events
+    ├── /ws/video        WebSocket — video playback proxy
+    └── /                Admin UI (React SPA)
+
+Data flow:
+  Axis Camera → MQTT broker → backend → MongoDB
+                                      → WebSocket clients
 ```
 
-## Quick Start
+### Source layout
 
-> 💡 **New User?** See [QUICK_START.md](QUICK_START.md) for a 3-step getting started guide!
->
-> Use the interactive `./setup.sh` script for guided configuration, then `./start.sh` to launch!
+```
+src/
+├── routes/          API routes
+├── services/        Business logic
+├── models/          Mongoose models
+├── middleware/       Auth middleware
+├── mqtt/            MQTT client
+├── dataq/           DataQ message parser
+├── websocket/       WebSocket server and handlers
+├── config/          Configuration loading
+└── server.js        Entry point
 
-### Prerequisites
-
-- **Docker & Docker Compose** (for production deployment)
-- **Node.js 18+** (for development only)
-- **MongoDB** (bundled with Docker or external)
-- **MQTT broker** for DataQ messages (e.g., Mosquitto, HiveMQ)
-
-### Development Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-org/dataq-analyzer-backend.git
-   cd dataq-analyzer-backend
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   cd admin-ui && npm install && cd ..
-   ```
-
-3. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-4. **Start development servers**
-   ```bash
-   # Terminal 1: Start backend
-   npm run dev
-
-   # Terminal 2: Start admin UI dev server
-   npm run dev:admin
-   ```
-
-5. **Access the application**
-   - Backend API: http://localhost:3000/api
-   - Admin UI (dev): http://localhost:5174
-   - Admin UI (via backend): http://localhost:3000/admin (after building)
-
-### Production Deployment (Docker) - Recommended
-
-#### Quick Setup with Interactive Script
-
-The easiest way to get started is using the interactive setup script:
-
-```bash
-# Run the setup script
-./setup.sh
+admin-ui/
+├── src/components/  React components
+├── src/services/    API client
+└── src/context/     Auth and date format contexts
 ```
 
-The script will guide you through:
-- Generating secure JWT secrets
-- Configuring MongoDB (bundled or external)
-- Setting up MQTT broker connection
-- Configuring CORS and other settings
-- Creating your `.env` file automatically
+---
 
-After setup completes, start the services:
+## API
 
-```bash
-# With bundled MongoDB
-docker-compose -f docker/docker-compose.yml --profile with-mongodb up -d
+See [API.md](API.md) for full REST and WebSocket API documentation.
 
-# OR with external MongoDB
-docker-compose -f docker/docker-compose.yml up -d
+**Quick reference:**
+
+```
+POST   /api/auth/login
+GET    /api/auth/me
+
+GET    /api/cameras
+POST   /api/cameras
+PUT    /api/cameras/:id
+DELETE /api/cameras/:id
+
+POST   /api/paths/query        MongoDB query syntax
+POST   /api/paths/count
+POST   /api/paths/aggregate
+GET    /api/paths/:id
+
+GET    /api/counters
+POST   /api/counters
+GET    /api/counters/:id
+PUT    /api/counters/:id
+DELETE /api/counters/:id
+GET    /api/counters/:id/backfill
+POST   /api/counters/:id/backfill    trigger recount from history
+POST   /api/counters/:id/reset       reset all counters to zero
+POST   /api/counters/:id/counters/:counterId/reset
+GET    /api/counters/cameras          path event counts per camera (telemetry)
+GET    /api/counters/cameras/:serial/series
+POST   /api/counters/cleanup          trigger retention cleanup
+
+GET    /api/config/system
+PUT    /api/config/system
+GET    /api/config/mqtt
+PUT    /api/config/mqtt
+
+GET    /api/health
 ```
 
-#### Manual Setup (Alternative)
-
-If you prefer to configure manually:
-
-**Option 1: With Bundled MongoDB (Default)**
-
-```bash
-# Create .env file with your configuration
-cp .env.example .env
-
-# Edit .env - set JWT_SECRET and other required values
-nano .env
-
-# Start with MongoDB
-docker-compose -f docker/docker-compose.yml --profile with-mongodb up -d
-```
-
-**Option 2: With External MongoDB**
-
-```bash
-# Edit .env and set MONGODB_URI to your external MongoDB
-nano .env
-# MONGODB_URI=mongodb://10.13.8.2:27017/dataq-analyzer
-
-# Start without MongoDB service
-docker-compose -f docker/docker-compose.yml up -d
-```
-
-**Access:**
-- API: http://localhost:3000/api
-- Admin UI: http://localhost:3000/admin
-- MongoDB (if bundled): localhost:27017
-
-**Detailed deployment documentation:** See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment guide, troubleshooting, and production checklist.
-
-## Configuration
-
-### Environment Variables
-
-See [.env.example](.env.example) for all configuration options.
-
-**Required:**
-- `JWT_SECRET` - JWT signing secret (CHANGE IN PRODUCTION!)
-- `PORT` - Server port (default: 3000)
-
-**MongoDB Options:**
-
-**Option A: Component-based (Bundled - Default)**
-```bash
-MONGODB_HOST=mongodb
-MONGODB_PORT=27017
-MONGODB_DATABASE=dataq-analyzer
-MONGODB_USERNAME=admin
-MONGODB_PASSWORD=changeme
-MONGODB_AUTH_REQUIRED=true
-```
-
-**Option B: Connection String (External)**
-```bash
-MONGODB_URI=mongodb://username:password@host:27017/database?authSource=admin
-```
-
-**MQTT Configuration:**
-```bash
-MQTT_BROKER_URL=mqtt://mqtt-broker:1883
-MQTT_TOPIC_PREFIX=dataq/#
-```
-
-**CORS Configuration:**
-```bash
-CORS_ORIGIN=*  # Development: *, Production: http://frontend-url:port
-```
-
-### Initial Setup
-
-1. Access admin UI: http://localhost:3000/admin
-2. Create initial admin user (first-time setup)
-3. Log in with admin credentials
-4. Configure cameras and MQTT connection in Settings
-
-## API Documentation
-
-### Authentication
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
-- `POST /api/auth/register` - Create user (admin only)
-
-### Cameras
-- `GET /api/cameras` - List all cameras
-- `POST /api/cameras` - Create camera (admin only)
-- `PUT /api/cameras/:id` - Update camera (admin only)
-- `DELETE /api/cameras/:id` - Delete camera (admin only)
-
-### Path Events
-- `GET /api/paths` - Query path events (with filters)
-- `GET /api/paths/:id` - Get path event by ID
-- `GET /api/paths/stats/:serialNumber` - Get statistics
-
-### Configuration (Admin Only)
-- `/api/config/mqtt` - MQTT configuration
-- `/api/config/mongodb` - MongoDB configuration
-- `/api/config/system` - System settings
+---
 
 ## Development
 
-### NPM Scripts
+### Build and run locally
 
 ```bash
-npm run dev              # Start backend in development mode
-npm run dev:admin        # Start admin UI dev server
-npm run start            # Start backend in production mode
-npm run build:admin      # Build admin UI for production
-npm run docker:build     # Build Docker image
-npm run docker:up        # Start with docker-compose (no MongoDB)
-npm run docker:up:with-mongo  # Start with bundled MongoDB
-npm run docker:down      # Stop docker-compose
-npm run docker:logs      # View docker logs
+npm install
+cd admin-ui && npm install && cd ..
+
+# Start backend (dev mode with auto-reload)
+npm run dev
+
+# Start admin UI dev server (separate terminal)
+npm run dev:admin
 ```
 
-### Project Structure
+Admin UI dev server: http://localhost:5174
+Backend API: http://localhost:3303/api
 
-```
-dataq-analyzer-backend/
-├── src/                 # Backend source code
-│   ├── routes/          # API routes
-│   ├── services/        # Business logic
-│   ├── models/          # Mongoose models
-│   ├── middleware/      # Express middleware
-│   ├── mqtt/            # MQTT client
-│   ├── dataq/           # DataQ message parser
-│   └── server.js        # Entry point
-├── admin-ui/            # Admin frontend
-│   ├── src/             # React source code
-│   ├── public/          # Static assets
-│   └── vite.config.js   # Vite configuration
-├── docker/              # Docker configuration
-│   ├── Dockerfile       # Multi-stage build
-│   ├── docker-compose.yml
-│   └── .dockerignore
-└── dist/admin/          # Built admin UI (served by Express)
+### Build the Docker image
+
+```bash
+docker compose -f docker-compose.build.yml build
+docker compose -f docker-compose.build.yml push
 ```
 
-## Troubleshooting
+### Publish to Docker Hub (CI)
 
-### MongoDB Connection Issues
+The GitHub Actions workflow at `.github/workflows/docker-publish.yml` builds and pushes `pandosme/dataq-backend:latest` automatically on a version tag push or manual trigger.
 
-**Problem:** `MongooseServerSelectionError: connect ECONNREFUSED`
+Add `DOCKERHUB_TOKEN` as a repository secret in GitHub (a Docker Hub access token for the `pandosme` account). Then:
 
-**Solutions:**
-- If using bundled MongoDB: Ensure docker-compose started with `--profile with-mongodb`
-- If using external MongoDB: Check `MONGODB_URI` or component-based config
-- Verify MongoDB is running: `docker ps` or `systemctl status mongod`
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
 
-### MQTT Connection Issues
-
-**Problem:** Cannot connect to MQTT broker
-
-**Solutions:**
-- Check `MQTT_BROKER_URL` in .env
-- Verify MQTT broker is accessible: `telnet mqtt-broker 1883`
-- Check MQTT credentials if authentication is required
-
-### Admin UI Not Loading
-
-**Problem:** `/admin` shows 404 or blank page
-
-**Solutions:**
-- Build admin UI: `npm run build:admin`
-- Check `dist/admin/` directory exists
-- Restart backend server
-
-### CORS Errors from Frontend
-
-**Problem:** Frontend gets CORS errors when calling API
-
-**Solutions:**
-- Set `CORS_ORIGIN` in .env to frontend URL
-- For multiple origins: `CORS_ORIGIN=http://localhost:8080,http://192.168.1.100:8080`
-
-## Security
-
-⚠️ **Important**: This project is not yet production-ready. See [BACKLOG.md](BACKLOG.md) for security issues that must be addressed before deploying to production or publishing to Docker Hub.
-
-**Critical security tasks include:**
-- Adding comprehensive test coverage
-- Fixing dependency vulnerabilities
-- Adding input validation and sanitization
-- Implementing rate limiting
-- Adding security headers
-- Encrypting camera passwords
-
-**Do not use in production until all CRITICAL and HIGH priority items in BACKLOG.md are completed.**
+---
 
 ## License
 
 MIT
-
-## Support
-
-For issues and questions:
-- GitHub Issues: https://github.com/your-org/dataq-analyzer-backend/issues
-- Security Issues: See [BACKLOG.md](BACKLOG.md)

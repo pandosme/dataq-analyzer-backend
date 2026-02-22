@@ -27,7 +27,7 @@ function Dashboard({ inline = false }) {
   const loadDashboardData = async () => {
     try {
       setError(null);
-      const camerasResponse = await camerasAPI.getAll();
+      const camerasResponse = await camerasAPI.getAll(false, true);
 
       const camerasData = camerasResponse.data || [];
       setCameras(camerasData);
@@ -118,7 +118,9 @@ function Dashboard({ inline = false }) {
                     <th>Status</th>
                     <th>Name</th>
                     <th>Serial Number</th>
+                      <th>Paths</th>
                     <th>Type</th>
+                      <th>Retention (days)</th>
                     <th>Model</th>
                     <th>Last Seen</th>
                   </tr>
@@ -135,9 +137,11 @@ function Dashboard({ inline = false }) {
                         </td>
                         <td className="device-name">{camera.name || 'Unnamed'}</td>
                         <td className="device-serial">{camera.serialNumber}</td>
+                        <td className="device-count">{camera.pathCount ?? 0}</td>
                         <td>
                           <span className="device-type-badge">{camera.cameraType || 'N/A'}</span>
                         </td>
+                        <td className="device-retention">{camera.effectiveRetentionDays ?? '—'}</td>
                         <td className="device-model">
                           {camera.model || 'N/A'}
                         </td>

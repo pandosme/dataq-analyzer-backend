@@ -10,6 +10,7 @@ This document describes the REST API for integrating client applications with th
   - [Authentication Endpoints](#authentication-endpoints)
   - [Camera Endpoints](#camera-endpoints)
   - [Path Events Endpoints](#path-events-endpoints)
+  - [Counter Sets Endpoints](#counter-sets-endpoints)
 - [WebSocket API](#websocket-api)
   - [WebSocket Authentication](#websocket-authentication)
   - [Client Messages](#client-messages)
@@ -520,6 +521,249 @@ GET /api/paths?serial=B8A44F3024BB&class=Human&limit=50
   "data": [ ... ]
 }
 ```
+
+---
+
+### Counter Sets Endpoints
+
+Counter sets count directional flows between named zones drawn on a camera view. Each set is linked to one camera (by serial number), defines 2–6 rectangular zones, and automatically generates a counter for every directional pair (A→B, B→A, A→C, …). Counts are updated in real-time as path events arrive and can also be backfilled from historical data.
+
+Counts are published periodically to an MQTT topic if `mqttTopic` and `mqttInterval` are configured.
+
+#### GET /api/counters
+
+List all counter sets.
+
+**Authentication:** Required (any role)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "Main Entrance",
+      "serial": "B8A44F3024BB",
+      "objectClasses": ["Human", "Car"],
+      "zones": [
+        { "label": "A", "name": "Outside", "rect": { "x1": 0, "y1": 0, "x2": 400, "y2": 1000 } },
+        { "label": "B", "name": "Inside",  "rect": { "x1": 600, "y1": 0, "x2": 1000, "y2": 1000 } }
+      ],
+      "counters": [
+        { "id": "A->B", "from": "A", "to": "B", "name": "A → B", "enabled": true, "total": 142, "byClass": { "Human": 130, "Car": 12 } },
+        { "id": "B->A", "from": "B", "to": "A", "name": "B → A", "enabled": true, "total": 98,  "byClass": { "Human": 90,  "Car": 8  } }
+      ],
+      "mqttTopic": "dataq/counters/main-entrance",
+      "mqttInterval": 60,
+      "days": 7,
+      "backfill": { "status": "complete", "totalPaths": 5200, "processedPaths": 5200 },
+      "createdAt": "2026-01-01T10:00:00.000Z",
+      "updatedAt": "2026-02-01T08:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+#### POST /api/counters
+
+Create a new counter set. A backfill from historical path event data starts automatically.
+
+**Authentication:** Required (admin only)
+
+**Request Body:**
+```json
+{
+  "name": "Main Entrance",
+  "serial": "B8A44F3024BB",
+  "objectClasses": ["Human", "Car"],
+  "zones": [
+    { "label": "A", "name": "Outside", "rect": { "x1": 0,   "y1": 0, "x2": 400,  "y2": 1000 } },
+    { "label": "B", "name": "Inside",  "rect": { "x1": 600, "y1": 0, "x2": 1000, "y2": 1000 } }
+  ],
+  "mqttTopic": "dataq/counters/main-entrance",
+  "mqttInterval": 60,
+  "counters": [
+    { "id": "A->B", "name": "Entries", "enabled": true },
+    { "id": "B->A", "name": "Exits",   "enabled": true }
+  ]
+}
+```
+
+**Fields:**
+- `name` (string, required): Unique display name
+- `serial` (string, required): Camera serial number
+- `objectClasses` (array of strings, required): Object classes to count (e.g. `["Human", "Car"]`)
+- `zones` (array, required): 2–6 zone definitions
+  - `label` (string): Short unique label (A, B, C …)
+  - `name` (string, optional): Display name
+  - `rect`: Bounding rectangle in 0–1000 coordinate space: `x1`, `y1`, `x2`, `y2`
+- `mqttTopic` (string, optional): MQTT topic to publish counter totals to
+- `mqttInterval` (number, optional): Publish interval in seconds (default: 60)
+- `counters` (array, optional): Override generated counter names or enabled flags
+
+Counters are auto-generated for every directional pair from the zones list. The `counters` field in the request is only used to set custom names or disable specific directions.
+
+**Response (201 Created):** Returns the created counter set document.
+
+**Error Responses:**
+- `400 Bad Request`: Missing required fields or invalid zone count
+- `409 Conflict`: A counter set with that name already exists
+
+---
+
+#### GET /api/counters/:id
+
+Get a single counter set by ID.
+
+**Authentication:** Required (any role)
+
+**Response (200 OK):** Returns the counter set document.
+
+---
+
+#### PUT /api/counters/:id
+
+Update a counter set. If zones change (labels or geometry), counters are reset and a new backfill is triggered automatically.
+
+**Authentication:** Required (admin only)
+
+**Request Body (all fields optional):**
+```json
+{
+  "name": "Updated Name",
+  "objectClasses": ["Human"],
+  "mqttTopic": "dataq/counters/entrance",
+  "mqttInterval": 30,
+  "zones": [ ... ],
+  "counters": [
+    { "id": "A->B", "name": "Entries", "enabled": true }
+  ],
+  "recount": true
+}
+```
+
+Set `recount: true` to force a full backfill recount without changing zones.
+
+**Response (200 OK):** Returns the updated counter set document.
+
+---
+
+#### DELETE /api/counters/:id
+
+Delete a counter set and stop its MQTT publish timer.
+
+**Authentication:** Required (admin only)
+
+**Response (200 OK):**
+```json
+{ "success": true, "data": { "deleted": true } }
+```
+
+---
+
+#### GET /api/counters/:id/backfill
+
+Get the current backfill status for a counter set.
+
+**Authentication:** Required (any role)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "status": "running",
+    "totalPaths": 5200,
+    "processedPaths": 3100,
+    "startedAt": "2026-02-01T08:00:00.000Z",
+    "completedAt": null,
+    "error": null
+  }
+}
+```
+
+`status` values: `idle`, `running`, `complete`, `failed`
+
+---
+
+#### POST /api/counters/:id/backfill
+
+Trigger a backfill recount. Resets all counter totals to zero and recounts from stored path events.
+
+**Authentication:** Required (admin only)
+
+**Response (200 OK):**
+```json
+{ "success": true, "data": { "status": "running", "message": "Backfill started" } }
+```
+
+---
+
+#### POST /api/counters/:id/reset
+
+Reset all counters in a set to zero (does not recount from history).
+
+**Authentication:** Required (admin only)
+
+**Response (200 OK):** Returns the updated counter set document.
+
+---
+
+#### POST /api/counters/:id/counters/:counterId/reset
+
+Reset a single counter to zero. The `counterId` must be URL-encoded (e.g. `A-%3EB` for `A->B`).
+
+**Authentication:** Required (admin only)
+
+**Response (200 OK):** Returns the updated counter set document.
+
+---
+
+#### MQTT Publish Format
+
+When `mqttTopic` is set, the backend publishes this payload every `mqttInterval` seconds:
+
+```json
+{
+  "name": "Main Entrance",
+  "serial": "B8A44F3024BB",
+  "timestamp": 1740000000,
+  "days": 7,
+  "counters": [
+    { "direction": "A->B", "name": "Entries", "total": 142, "Human": 130, "Car": 12 },
+    { "direction": "B->A", "name": "Exits",   "total": 98,  "Human": 90,  "Car": 8  }
+  ]
+}
+```
+
+Per-class counts are flattened as top-level properties on each counter entry.
+
+---
+
+#### Telemetry / Analytics (legacy)
+
+These endpoints provide aggregate statistics over raw path events directly, without requiring a counter set.
+
+**GET /api/counters/cameras** — Total path event counts grouped by camera serial.
+
+Query parameters: `since` (ISO date, optional) — only count events after this timestamp.
+
+```json
+{ "success": true, "data": [ { "serial": "B8A44F3024BB", "count": 4820 } ] }
+```
+
+**GET /api/counters/cameras/:serial/series** — Time-series counts for one camera.
+
+Query parameters: `interval` (`hour` or `day`, default `day`), `rangeDays` (default `30`).
+
+```json
+{ "success": true, "data": [ { "bucketStart": "2026-01-01T00:00:00.000Z", "count": 312 } ] }
+```
+
+**POST /api/counters/cleanup** — Manually trigger the data retention cleanup job.
 
 ---
 
@@ -1825,7 +2069,11 @@ stats = client.aggregate_paths(
    - Frontend uses MediaSource API to progressively load and play fragmented video chunks
    - Video playback automatically starts at the event timestamp (preTime offset), not at the beginning of the clip
    - Temporary files are automatically cleaned up after streaming completes
-   - See [VIDEO_PLAYBACK_FIX.md](VIDEO_PLAYBACK_FIX.md) for detailed implementation documentation
+
+9. **Dwell Heatmap**:
+   - Computed client-side using the `POST /api/paths/aggregate` endpoint
+   - Aggregation pipeline unwinds each event's `path` array, groups by quantized `(x, y)` coordinate bucket, and sums the `d` (dwell) values at each point
+   - The resulting grid is rendered on a canvas overlay on the camera snapshot image
 
 ---
 

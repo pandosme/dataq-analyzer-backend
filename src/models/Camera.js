@@ -147,6 +147,12 @@ const cameraSchema = new mongoose.Schema(
         default: 2,
       },
     },
+    // Optional per-camera data retention override (days). If not set, system default is used.
+    retentionDays: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -154,7 +160,6 @@ const cameraSchema = new mongoose.Schema(
 );
 
 // Index for efficient querying
-cameraSchema.index({ serialNumber: 1 });
 cameraSchema.index({ enabled: 1 });
 
 const Camera = mongoose.model('Camera', cameraSchema);

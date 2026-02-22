@@ -340,6 +340,15 @@
   background-color: #2980b9;
 }
 
+.btn-danger {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
 .btn-test {
   background-color: #95a5a6;
   color: white;
@@ -347,4 +356,55 @@
 
 .btn-test:hover:not(:disabled) {
   background-color: #7f8c8d;
+}
+
+/* ── MQTT cert textareas ──────────────────────────────────────────────────── */
+.cert-textarea {
+  width: 100%;
+  font-family: Courier New, Courier, monospace;
+  font-size: 0.75rem;
+  background: #1a1a2e;
+  color: #a0aec0;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  padding: 8px;
+  resize: vertical;
+  box-sizing: border-box;
+  line-height: 1.4;
+}
+
+.cert-textarea:focus {
+  outline: none;
+  border-color: #4299e1;
+}
+
+.cert-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+  border-radius: 10px;
+  background: #2d6a4f;
+  color: #74c69d;
+  font-weight: 500;
+}
+
+.btn-secondary {
+  padding: 8px 16px;
+  background: #2d3748;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #3d4a5c;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

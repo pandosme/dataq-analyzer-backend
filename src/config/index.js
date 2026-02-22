@@ -1,22 +1,8 @@
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 
 // Load environment variables
 dotenv.config();
-
-/**
- * Validates that required environment variables are set
- * @param {string[]} required - Array of required env var names
- */
-function validateEnv(required) {
-  const missing = required.filter((key) => !process.env[key]);
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-  }
-}
-
-// Validate required configuration
-// MONGODB_URI is optional - if not provided, will be built from components
-validateEnv(['PORT']);
 
 /**
  * Build MongoDB URI from environment variables
@@ -45,6 +31,20 @@ function buildMongoUri() {
 }
 
 /**
+ * Generate or retrieve JWT secret
+ * Auto-generates if not provided via environment
+ */
+function getJwtSecret() {
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+  // Auto-generate (tokens invalidate on restart, which is acceptable)
+  const secret = crypto.randomBytes(64).toString('hex');
+  console.log('JWT_SECRET not set — auto-generated (tokens will reset on container restart)');
+  return secret;
+}
+
+/**
  * Database configuration
  */
 export const dbConfig = {
@@ -64,16 +64,16 @@ export const dbConfig = {
  * Server configuration
  */
 export const serverConfig = {
-  port: parseInt(process.env.PORT, 10) || 3303,
-  nodeEnv: process.env.NODE_ENV || 'development',
-  isDevelopment: process.env.NODE_ENV !== 'production',
+  port: parseInt(process.env.PORT, 10) || 80,
+  nodeEnv: process.env.NODE_ENV || 'production',
+  isDevelopment: process.env.NODE_ENV === 'development',
 };
 
 /**
  * MQTT configuration (defaults from env, can be overridden by database settings)
  */
 export const mqttConfig = {
-  brokerUrl: process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883',
+  brokerUrl: process.env.MQTT_BROKER_URL || '',
   username: process.env.MQTT_USERNAME || null,
   password: process.env.MQTT_PASSWORD || null,
   useTls: process.env.MQTT_USE_TLS === 'true',
@@ -85,10 +85,9 @@ export const mqttConfig = {
  * Authentication configuration
  */
 export const authConfig = {
-  // Simple password for admin UI (plain text in .env)
-  adminPassword: process.env.ADMIN_PASSWORD || '',
-  // JWT for API clients (if needed later)
-  jwtSecret: process.env.JWT_SECRET,
+  adminUsername: process.env.ADMIN_USERNAME || 'admin',
+  adminPassword: process.env.ADMIN_PASSWORD || 'admin',
+  jwtSecret: getJwtSecret(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 };
 

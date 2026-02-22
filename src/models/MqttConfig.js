@@ -7,11 +7,6 @@ const mqttConfigSchema = new mongoose.Schema(
       type: String,
       default: 'mqtt-config',
     },
-    brokerUrl: {
-      type: String,
-      required: true,
-      default: 'mqtt://localhost:1883',
-    },
     host: {
       type: String,
       required: true,
@@ -27,6 +22,7 @@ const mqttConfigSchema = new mongoose.Schema(
       enum: ['mqtt', 'mqtts', 'ws', 'wss'],
       default: 'mqtt',
     },
+    // Authentication
     username: {
       type: String,
       default: '',
@@ -35,10 +31,28 @@ const mqttConfigSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // TLS / certificate settings
     useTls: {
       type: Boolean,
       default: false,
     },
+    rejectUnauthorized: {
+      type: Boolean,
+      default: true,   // false = trust self-signed certs
+    },
+    caCert: {
+      type: String,
+      default: '',     // PEM-encoded CA certificate
+    },
+    clientCert: {
+      type: String,
+      default: '',     // PEM-encoded client certificate
+    },
+    clientKey: {
+      type: String,
+      default: '',     // PEM-encoded client private key
+    },
+    // Topic subscription
     topicPrefix: {
       type: String,
       default: 'dataq/#',
@@ -48,6 +62,12 @@ const mqttConfigSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Virtual for brokerUrl built from parts
+mqttConfigSchema.virtual('brokerUrl').get(function () {
+  const proto = this.useTls ? 'mqtts' : (this.protocol === 'ws' || this.protocol === 'wss' ? this.protocol : 'mqtt');
+  return `${proto}://${this.host}:${this.port}`;
+});
 
 const MqttConfig = mongoose.model('MqttConfig', mqttConfigSchema);
 

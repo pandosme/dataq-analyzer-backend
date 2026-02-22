@@ -27,6 +27,7 @@ function CameraManagement({ onClose, inline = false }) {
       minDistance: 20,
       minAge: 2,
     },
+    retentionDays: null,
   });
 
   useEffect(() => {
@@ -49,7 +50,7 @@ function CameraManagement({ onClose, inline = false }) {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
+    const newValue = type === 'checkbox' ? checked : type === 'number' ? (value === '' ? '' : Number(value)) : value;
 
     setFormData((prev) => {
       // Handle filter fields separately
@@ -137,7 +138,9 @@ function CameraManagement({ onClose, inline = false }) {
     e.preventDefault();
     try {
       setError(null);
-      await camerasAPI.create(formData);
+      const payload = { ...formData };
+      if (payload.retentionDays === '' || payload.retentionDays == null) delete payload.retentionDays;
+      await camerasAPI.create(payload);
       setShowAddCamera(false);
       resetForm();
       await loadCameras();
@@ -165,6 +168,7 @@ function CameraManagement({ onClose, inline = false }) {
         minDistance: camera.filters?.minDistance !== undefined ? camera.filters.minDistance : 20,
         minAge: camera.filters?.minAge !== undefined ? camera.filters.minAge : 2,
       },
+      retentionDays: camera.retentionDays !== undefined ? camera.retentionDays : null,
     });
     setConnected(camera.cameraType === 'local'); // If editing local camera, consider it "connected"
   };
@@ -173,7 +177,9 @@ function CameraManagement({ onClose, inline = false }) {
     e.preventDefault();
     try {
       setError(null);
-      await camerasAPI.update(editingCamera, formData);
+      const payload = { ...formData };
+      if (payload.retentionDays === '' || payload.retentionDays == null) delete payload.retentionDays;
+      await camerasAPI.update(editingCamera, payload);
       setEditingCamera(null);
       resetForm();
       await loadCameras();
@@ -234,6 +240,7 @@ function CameraManagement({ onClose, inline = false }) {
         minDistance: 20,
         minAge: 2,
       },
+      retentionDays: null,
     });
     setConnected(false);
     setConnecting(false);
@@ -381,6 +388,19 @@ function CameraManagement({ onClose, inline = false }) {
                           value={formData.location}
                           onChange={handleInputChange}
                           placeholder="e.g., Building A, Floor 1"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="retentionDays">Retention (days)</label>
+                        <input
+                          type="number"
+                          id="retentionDays"
+                          name="retentionDays"
+                          value={formData.retentionDays == null ? '' : formData.retentionDays}
+                          onChange={handleInputChange}
+                          placeholder="Leave empty to use system default"
+                          min={1}
                         />
                       </div>
 
@@ -536,6 +556,19 @@ function CameraManagement({ onClose, inline = false }) {
                           value={formData.location}
                           onChange={handleInputChange}
                           placeholder="e.g., Building A, Floor 1"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="retentionDays">Retention (days)</label>
+                        <input
+                          type="number"
+                          id="retentionDays"
+                          name="retentionDays"
+                          value={formData.retentionDays == null ? '' : formData.retentionDays}
+                          onChange={handleInputChange}
+                          placeholder="Leave empty to use system default"
+                          min={1}
                         />
                       </div>
 

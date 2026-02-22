@@ -14,7 +14,8 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const enabledOnly = req.query.enabled === 'true';
-    const cameras = await cameraService.getAllCameras(enabledOnly);
+    const includeStats = req.query.stats === 'true';
+    const cameras = await cameraService.getAllCameras(enabledOnly, includeStats);
     res.json({ success: true, data: cameras });
   } catch (error) {
     logger.error('Error getting cameras', { error: error.message });
@@ -59,6 +60,7 @@ router.post('/', async (req, res) => {
       aspectRatio,
       mqttTopic,
       enabled,
+      retentionDays,
     } = req.body;
 
     // Validation
@@ -86,6 +88,7 @@ router.post('/', async (req, res) => {
       aspectRatio: aspectRatio || '16:9',
       mqttTopic: finalMqttTopic,
       enabled: enabled !== false,
+      retentionDays: retentionDays !== undefined ? retentionDays : undefined,
     };
 
     // Validate local camera has required fields
@@ -153,6 +156,7 @@ router.put('/:id', async (req, res) => {
       'mqttTopic',
       'enabled',
       'filters',
+      'retentionDays',
     ];
 
     const updateData = {};

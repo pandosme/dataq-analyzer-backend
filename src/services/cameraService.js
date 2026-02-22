@@ -1,4 +1,5 @@
-import { Camera } from '../models/index.js';
+import { Camera, PathEvent } from '../models/index.js';
+import * as configService from './configService.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -6,10 +7,32 @@ import logger from '../utils/logger.js';
  * @param {boolean} enabledOnly - Return only enabled cameras
  * @returns {Promise<Array>}
  */
-export async function getAllCameras(enabledOnly = false) {
+export async function getAllCameras(enabledOnly = false, includeStats = false) {
   try {
     const query = enabledOnly ? { enabled: true } : {};
-    return await Camera.find(query).sort({ name: 1 }).lean();
+    const cameras = await Camera.find(query).sort({ name: 1 }).lean();
+
+    if (!includeStats) return cameras;
+
+    // Aggregate path counts per serial
+    const counts = await PathEvent.aggregate([
+      { $group: { _id: '$serial', count: { $sum: 1 } } },
+    ]);
+    const countsMap = {};
+    counts.forEach((c) => {
+      countsMap[c._id] = c.count;
+    });
+
+    // Get system default retention
+    const systemConfig = await configService.getSystemConfig();
+    const defaultRetention = systemConfig?.dataRetentionDays || 90;
+
+    // Attach pathCount and effectiveRetentionDays to each camera
+    return cameras.map((cam) => ({
+      ...cam,
+      pathCount: countsMap[cam.serialNumber] || 0,
+      effectiveRetentionDays: cam.retentionDays != null ? cam.retentionDays : defaultRetention,
+    }));
   } catch (error) {
     logger.error('Failed to get cameras', { error: error.message });
     throw error;

@@ -1,8 +1,26 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
+
+// Simple collection for env-admin preferences (no dedicated model needed)
+const getEnvAdminPrefs = async () => {
+  const db = mongoose.connection.db;
+  const doc = await db.collection('envAdminPreferences').findOne({ _id: 'env-admin' });
+  return doc?.preferences || {};
+};
+
+const setEnvAdminPrefs = async (preferences) => {
+  const db = mongoose.connection.db;
+  await db.collection('envAdminPreferences').updateOne(
+    { _id: 'env-admin' },
+    { $set: { preferences, updatedAt: new Date() } },
+    { upsert: true }
+  );
+  return preferences;
+};
 
 /**
  * GET /api/users/me/preferences
@@ -10,6 +28,12 @@ const router = express.Router();
  */
 router.get('/me/preferences', async (req, res) => {
   try {
+    // Handle env-admin (no DB user document)
+    if (req.user.isEnvAdmin) {
+      const prefs = await getEnvAdminPrefs();
+      return res.json({ success: true, data: prefs });
+    }
+
     const user = await User.findById(req.user._id).select('preferences');
 
     if (!user) {
@@ -69,18 +93,38 @@ router.put('/me/preferences', async (req, res) => {
 
     // Validate videoPlayback
     if (videoPlayback) {
-      if (videoPlayback.preTime !== undefined && (typeof videoPlayback.preTime !== 'number' || videoPlayback.preTime < 0 || videoPlayback.preTime > 60)) {
+      if (videoPlayback.preTime !== undefined && videoPlayback.preTime !== null && (typeof videoPlayback.preTime !== 'number' || videoPlayback.preTime < 0 || videoPlayback.preTime > 60)) {
         return res.status(400).json({
           success: false,
           error: 'Invalid videoPlayback.preTime. Must be a number between 0 and 60',
         });
       }
-      if (videoPlayback.postTime !== undefined && (typeof videoPlayback.postTime !== 'number' || videoPlayback.postTime < 0 || videoPlayback.postTime > 60)) {
+      if (videoPlayback.postTime !== undefined && videoPlayback.postTime !== null && (typeof videoPlayback.postTime !== 'number' || videoPlayback.postTime < 0 || videoPlayback.postTime > 60)) {
         return res.status(400).json({
           success: false,
           error: 'Invalid videoPlayback.postTime. Must be a number between 0 and 60',
         });
       }
+    }
+
+    // Handle env-admin: merge and store directly
+    if (req.user.isEnvAdmin) {
+      const existing = await getEnvAdminPrefs();
+      const merged = { ...existing };
+      if (dateFormat !== undefined) merged.dateFormat = dateFormat || undefined;
+      if (timeFormat !== undefined) merged.timeFormat = timeFormat || undefined;
+      if (timezone !== undefined) merged.timezone = timezone || undefined;
+      if (theme !== undefined) merged.theme = theme || undefined;
+      if (videoPlayback !== undefined) {
+        merged.videoPlayback = { ...(merged.videoPlayback || {}), ...videoPlayback };
+      }
+      // Remove null/empty values
+      Object.keys(merged).forEach(k => {
+        if (merged[k] === null || merged[k] === '') delete merged[k];
+      });
+      const saved = await setEnvAdminPrefs(merged);
+      logger.info('Env-admin preferences updated', { set: merged });
+      return res.json({ success: true, data: saved });
     }
 
     // Build update object using dot notation to preserve existing preferences

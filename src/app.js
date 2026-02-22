@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
+import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import apiRoutes from './routes/index.js';
 import { serverConfig } from './config/index.js';
@@ -40,11 +41,13 @@ export function createApp() {
   // API routes (must come before static file serving to avoid conflicts)
   app.use('/api', apiRoutes);
 
-  // Serve admin UI static files from root path
-  // In Docker: /app/dist/admin, in dev: /app/admin-ui/dist
-  const adminDistPath = process.env.NODE_ENV === 'production'
-    ? path.join(__dirname, '..', 'dist', 'admin')
-    : path.join(__dirname, '..', 'admin-ui', 'dist');
+  // Serve admin UI static files from root path.
+  // Prefer the built dist/admin (Docker); fall back to admin-ui/dist for local dev.
+  const distAdminPath = path.join(__dirname, '..', 'dist', 'admin');
+  const devAdminPath  = path.join(__dirname, '..', 'admin-ui', 'dist');
+  const adminDistPath = existsSync(path.join(distAdminPath, 'index.html'))
+    ? distAdminPath
+    : devAdminPath;
   app.use(express.static(adminDistPath));
 
   // Admin UI fallback route for React Router (must come after API routes)

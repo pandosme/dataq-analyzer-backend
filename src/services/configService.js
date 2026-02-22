@@ -11,19 +11,38 @@ export async function getMqttConfig() {
   try {
     let config = await MqttConfig.findById('mqtt-config').lean();
     if (!config) {
-      // Create default config
+      // Create default config from environment or sensible defaults
+      const envUrl = process.env.MQTT_BROKER_URL || '';
+      let host = 'localhost', port = 1883, protocol = 'mqtt';
+      try {
+        const u = new URL(envUrl);
+        protocol = u.protocol.replace(':', '') || 'mqtt';
+        host = u.hostname || 'localhost';
+        port = parseInt(u.port) || 1883;
+      } catch (_) {}
       config = await MqttConfig.create({
         _id: 'mqtt-config',
-        brokerUrl: process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883',
-        host: 'localhost',
-        port: 1883,
-        protocol: 'mqtt',
-        topicPrefix: 'dataq/#',
+        host,
+        port,
+        protocol,
+        topicPrefix: process.env.MQTT_TOPIC_PREFIX || 'dataq/#',
+        username: process.env.MQTT_USERNAME || '',
+        useTls: process.env.MQTT_USE_TLS === 'true',
+        rejectUnauthorized: true,
       });
+      config = config.toObject();
     }
-    // Don't expose password in response
-    const { password, ...safeConfig } = config;
-    return { ...safeConfig, hasPassword: !!password };
+    // Don't expose sensitive credential content; send presence flags instead
+    const { password, caCert, clientCert, clientKey, ...safeConfig } = config;
+    const proto = config.useTls ? 'mqtts' : (config.protocol || 'mqtt');
+    return {
+      ...safeConfig,
+      brokerUrl: `${proto}://${config.host}:${config.port}`,
+      hasPassword: !!password,
+      hasCaCert: !!caCert,
+      hasClientCert: !!clientCert,
+      hasClientKey: !!clientKey,
+    };
   } catch (error) {
     logger.error('Failed to get MQTT config', { error: error.message });
     throw error;
@@ -38,13 +57,16 @@ export async function getMqttConfig() {
 export async function updateMqttConfig(updateData) {
   try {
     const allowedFields = [
-      'brokerUrl',
       'host',
       'port',
       'protocol',
       'username',
       'password',
       'useTls',
+      'rejectUnauthorized',
+      'caCert',
+      'clientCert',
+      'clientKey',
       'topicPrefix',
     ];
 
@@ -64,9 +86,18 @@ export async function updateMqttConfig(updateData) {
 
     logger.info('MQTT configuration updated', { host: config.host, port: config.port });
 
-    // Don't expose password in response
-    const { password, ...safeConfig } = config.toObject();
-    return { ...safeConfig, hasPassword: !!password };
+    // Don't expose sensitive credential content
+    const obj = config.toObject();
+    const { password, caCert, clientCert, clientKey, ...safeConfig } = obj;
+    const proto = obj.useTls ? 'mqtts' : (obj.protocol || 'mqtt');
+    return {
+      ...safeConfig,
+      brokerUrl: `${proto}://${obj.host}:${obj.port}`,
+      hasPassword: !!password,
+      hasCaCert: !!caCert,
+      hasClientCert: !!clientCert,
+      hasClientKey: !!clientKey,
+    };
   } catch (error) {
     logger.error('Failed to update MQTT config', { error: error.message });
     throw error;
@@ -98,6 +129,14 @@ export async function testMqttConnection(settings) {
 
     if (settings.username) options.username = settings.username;
     if (settings.password) options.password = settings.password;
+
+    // TLS options
+    if (settings.useTls || (settings.brokerUrl || '').startsWith('mqtts')) {
+      options.rejectUnauthorized = settings.rejectUnauthorized !== false;
+      if (settings.caCert)     options.ca   = settings.caCert;
+      if (settings.clientCert) options.cert = settings.clientCert;
+      if (settings.clientKey)  options.key  = settings.clientKey;
+    }
 
     const testClient = mqtt.connect(settings.brokerUrl, options);
 
@@ -137,12 +176,17 @@ export async function reconnectMqtt() {
       throw new Error('MQTT configuration not found');
     }
 
-    // Build connection config
+    // Build connection config from stored fields
+    const proto = config.useTls ? 'mqtts' : (config.protocol || 'mqtt');
     const mqttConfig = {
-      brokerUrl: config.brokerUrl,
+      brokerUrl: `${proto}://${config.host}:${config.port}`,
       username: config.username || null,
       password: config.password || null,
       useTls: config.useTls || false,
+      rejectUnauthorized: config.rejectUnauthorized !== false,
+      caCert: config.caCert || null,
+      clientCert: config.clientCert || null,
+      clientKey: config.clientKey || null,
       topicPrefix: config.topicPrefix || 'dataq/#',
       clientId: `dataq-analyzer-${Math.random().toString(16).substr(2, 8)}`,
     };
