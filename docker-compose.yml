@@ -1,21 +1,44 @@
-# DataQ Analyzer - Docker Compose
+# DataQ Analyzer Backend
 #
-# Uses MongoDB and MQTT from .env (external services)
+# By default this runs a bundled MongoDB container.
+# To use an existing MongoDB instead, remove or comment out the mongodb
+# service and volumes sections below, then update the backend environment
+# variables to point to your MongoDB host:
+#
+#   environment:
+#     - MONGODB_HOST=your-mongodb-host
+#     - MONGODB_AUTH_REQUIRED=true
+#     - MONGODB_USERNAME=your-user
+#     - MONGODB_PASSWORD=your-password
 #
 # Usage:
-#   docker compose up -d --build
+#   docker compose up -d
 #   docker compose logs -f
 #   docker compose down
 
 services:
-  dataq:
-    build: .
-    container_name: dataq-analyzer
-    restart: unless-stopped
-    network_mode: host
-    env_file:
-      - .env
+  backend:
+    image: pandosme/dataq-backend:latest
+    container_name: dataq-backend
+    ports:
+      - "3303:80"
     environment:
-      NODE_ENV: production
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=dataq-analyzer
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    container_name: dataq-mongodb
     volumes:
-      - ./logs:/app/logs
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+    driver: local
