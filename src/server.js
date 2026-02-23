@@ -15,7 +15,7 @@ import { initCounterSets } from './services/counterSetsService.js';
 async function migrateExistingCameras() {
   try {
     const defaultFilters = {
-      objectTypes: ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'LicensePlate', 'Head', 'Bag', 'Vehicle', 'Animal', 'Other'],
+      objectTypes: ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'LicensePlate', 'Head', 'Bag', 'Vehicle', 'Animal', 'Undefined', 'Other'],
       minDistance: 20,
       minAge: 2,
     };

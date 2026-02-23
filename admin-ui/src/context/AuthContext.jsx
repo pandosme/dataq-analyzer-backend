@@ -17,19 +17,21 @@ export const AuthProvider = ({ children }) => {
 
   // Check localStorage on mount
   useEffect(() => {
-    const authenticated = localStorage.getItem('authenticated') === 'true';
-    setIsAuthenticated(authenticated);
+    const token = localStorage.getItem('token');
+    setIsAuthenticated(!!token);
     setLoading(false);
   }, []);
 
-  const login = () => {
+  const login = (token) => {
     setIsAuthenticated(true);
     localStorage.setItem('authenticated', 'true');
+    localStorage.setItem('token', token);
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('authenticated');
+    localStorage.removeItem('token');
   };
 
   const value = {

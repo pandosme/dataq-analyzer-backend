@@ -9,6 +9,28 @@ const api = axios.create({
   },
 });
 
+// Attach JWT token to every request when available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Auto-logout on 401 responses (expired / invalid token)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && localStorage.getItem('token')) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('authenticated');
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Cameras API
 export const camerasAPI = {
   getAll: async (enabledOnly = false, includeStats = false) => {
@@ -78,9 +100,9 @@ export const pathsAPI = {
 
 // Authentication API
 export const authAPI = {
-  // Simple password login (for admin UI)
-  login: async (password) => {
-    const response = await api.post('/auth/login', { password });
+  // JWT login (admin UI)
+  login: async (username, password) => {
+    const response = await api.post('/auth/client-login', { username, password });
     return response.data;
   },
 

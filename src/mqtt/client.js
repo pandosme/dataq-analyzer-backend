@@ -199,7 +199,7 @@ export async function connectMQTT(config = null) {
  */
 function shouldSavePath(pathData, filters) {
   // Use default values if filters not configured
-  const defaultObjectTypes = ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'LicensePlate', 'Head', 'Bag', 'Vehicle', 'Animal', 'Other'];
+  const defaultObjectTypes = ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'LicensePlate', 'Head', 'Bag', 'Vehicle', 'Animal', 'Undefined', 'Other'];
   const objectTypes = filters?.objectTypes || defaultObjectTypes;
   const minAge = filters?.minAge !== undefined ? filters.minAge : 2;
   const minDistance = filters?.minDistance !== undefined ? filters.minDistance : 20;

@@ -35,7 +35,7 @@ export function matchesFilters(pathEvent, filters) {
   // Filter by minimum distance (pixels)
   // Calculate distance as sqrt(dx^2 + dy^2)
   if (filters.minDistance !== undefined && filters.minDistance !== null) {
-    if (!pathEvent.dx || !pathEvent.dy) {
+    if (pathEvent.dx === undefined || pathEvent.dy === undefined) {
       return false; // No displacement data
     }
     const distance = Math.sqrt(pathEvent.dx * pathEvent.dx + pathEvent.dy * pathEvent.dy);
