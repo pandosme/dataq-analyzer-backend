@@ -126,10 +126,10 @@ const cameraSchema = new mongoose.Schema(
     },
     // Detection filters - paths that don't meet these criteria will be ignored
     filters: {
-      // Object types to include (e.g., ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'LicensePlate', 'Head', 'Bag', 'Vehicle', 'Animal', 'Other'])
+      // Object types to include (e.g., ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'LicensePlate', 'Head', 'Bag', 'Vehicle', 'Animal', 'Undefined', 'Other'])
       objectTypes: {
         type: [String],
-        default: ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'LicensePlate', 'Head', 'Bag', 'Vehicle', 'Animal', 'Other'],
+        default: ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'LicensePlate', 'Head', 'Bag', 'Vehicle', 'Animal', 'Undefined', 'Other'],
       },
       // Minimum distance as percentage of total view displacement (0-50)
       // Total displacement = sqrt(dx^2 + dy^2) as % of diagonal
@@ -152,6 +152,22 @@ const cameraSchema = new mongoose.Schema(
       type: Number,
       min: 1,
       default: null,
+    },
+    // Labels/classes this device can detect (from dataq/connect announcement)
+    labels: {
+      type: [
+        {
+          id: { type: String },
+          name: { type: String },
+          enabled: { type: Boolean, default: true },
+        },
+      ],
+      default: [],
+    },
+    // Whether this camera was auto-discovered via MQTT announcement
+    autoDiscovered: {
+      type: Boolean,
+      default: false,
     },
   },
   {

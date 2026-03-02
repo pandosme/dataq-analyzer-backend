@@ -217,6 +217,76 @@ export async function getCameraSnapshot(serialNumber) {
   }
 }
 
+/**
+ * Auto-create or update a camera from a dataq/connect announcement.
+ * Only call this when the announcement has connected === true.
+ * @param {Object} announcement - Parsed connect message payload
+ * @param {string} announcement.serial - Device serial number
+ * @param {string} announcement.name - Device name
+ * @param {string} announcement.location - Device location
+ * @param {string} announcement.model - Device model
+ * @param {string} announcement.address - Device IP address
+ * @param {Array}  announcement.labels - Detection label/class definitions
+ * @returns {Promise<{camera: Object, isNew: boolean}>}
+ */
+export async function upsertCameraFromAnnouncement(announcement) {
+  try {
+    const serialNumber = (announcement.serial || '').toUpperCase();
+    if (!serialNumber) throw new Error('serial is required in announcement');
+
+    const enabledLabels = (announcement.labels || []).filter((l) => l.enabled !== false);
+
+    const setOnInsert = {
+      // Defaults only applied when the document is first created
+      cameraType: 'remote',
+      mqttTopic: `dataq/path/${serialNumber}`,
+      autoDiscovered: true,
+      enabled: true,
+    };
+
+    const setAlways = {
+      name: announcement.name || serialNumber,
+      location: announcement.location || '',
+      model: announcement.model || '',
+      labels: enabledLabels,
+      'deviceStatus.connected': true,
+      'deviceStatus.address': announcement.address || '',
+      'deviceStatus.lastSeen': new Date(),
+    };
+
+    const result = await Camera.findOneAndUpdate(
+      { serialNumber },
+      {
+        $set: setAlways,
+        $setOnInsert: setOnInsert,
+      },
+      { upsert: true, new: true, rawResult: true }
+    );
+
+    const isNew = result.lastErrorObject?.upserted != null;
+    const camera = result.value.toObject ? result.value.toObject() : result.value;
+
+    logger.info(isNew ? 'Camera auto-discovered and created' : 'Camera updated from announcement', {
+      serialNumber,
+      name: camera.name,
+      model: camera.model,
+      isNew,
+    });
+
+    return { camera, isNew };
+  } catch (error) {
+    if (error.code === 11000) {
+      // Race condition: camera was just inserted by another process - fetch it
+      const camera = await Camera.findOne({
+        serialNumber: (announcement.serial || '').toUpperCase(),
+      }).lean();
+      return { camera, isNew: false };
+    }
+    logger.error('Failed to upsert camera from announcement', { error: error.message });
+    throw error;
+  }
+}
+
 export default {
   getAllCameras,
   getCameraById,
@@ -226,4 +296,5 @@ export default {
   deleteCamera,
   updateCameraSnapshotFromMQTT,
   getCameraSnapshot,
+  upsertCameraFromAnnouncement,
 };

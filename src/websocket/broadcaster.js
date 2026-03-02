@@ -100,6 +100,61 @@ function shouldSendToClient(connection, pathEvent) {
   return true;
 }
 
+/**
+ * Broadcast a snapshot (image) update to all WebSocket clients subscribed to that camera
+ * @param {Object} snapshot - Snapshot data
+ * @param {string} snapshot.serial - Camera serial number
+ * @param {string} snapshot.image - Base64 encoded image
+ * @param {number} snapshot.timestamp - Image timestamp (ms)
+ * @param {number} [snapshot.rotation] - Image rotation degrees
+ * @param {string} [snapshot.aspect] - Aspect ratio string
+ */
+export function broadcastSnapshot(snapshot) {
+  const connections = getAllConnections();
+  let sentCount = 0;
+
+  for (const connection of connections) {
+    const { ws, subscriptions } = connection;
+
+    if (ws.readyState !== 1) continue;
+
+    const { cameras } = subscriptions;
+
+    // Send if subscribed to this specific camera, or subscribed to all (empty array)
+    const isSubscribed =
+      cameras.length === 0 || cameras.includes(snapshot.serial?.toUpperCase());
+
+    if (!isSubscribed) continue;
+
+    try {
+      ws.send(
+        JSON.stringify({
+          type: 'snapshot',
+          serial: snapshot.serial,
+          image: snapshot.image,
+          timestamp: snapshot.timestamp,
+          rotation: snapshot.rotation ?? 0,
+          aspect: snapshot.aspect ?? '16:9',
+        })
+      );
+      sentCount++;
+    } catch (error) {
+      logger.error('Failed to send snapshot to client', {
+        error: error.message,
+        connectionId: connection.id,
+      });
+    }
+  }
+
+  if (sentCount > 0) {
+    logger.debug('Snapshot broadcasted', {
+      serial: snapshot.serial,
+      recipientCount: sentCount,
+    });
+  }
+}
+
 export default {
   broadcastPathEvent,
+  broadcastSnapshot,
 };

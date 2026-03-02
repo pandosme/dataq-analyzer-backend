@@ -23,7 +23,7 @@ function CameraManagement({ onClose, inline = false }) {
     mqttTopic: '',
     enabled: true,
     filters: {
-      objectTypes: ['Person', 'Car', 'Bike', 'Truck', 'Bus'],
+      objectTypes: ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'Vehicle', 'Undefined'],
       minDistance: 20,
       minAge: 2,
     },
@@ -164,7 +164,7 @@ function CameraManagement({ onClose, inline = false }) {
       mqttTopic: camera.mqttTopic || '',
       enabled: camera.enabled !== false,
       filters: {
-        objectTypes: camera.filters?.objectTypes || ['Person', 'Car', 'Bike', 'Truck', 'Bus'],
+        objectTypes: camera.filters?.objectTypes || ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'Vehicle', 'Undefined'],
         minDistance: camera.filters?.minDistance !== undefined ? camera.filters.minDistance : 20,
         minAge: camera.filters?.minAge !== undefined ? camera.filters.minAge : 2,
       },
@@ -236,7 +236,7 @@ function CameraManagement({ onClose, inline = false }) {
       mqttTopic: '',
       enabled: true,
       filters: {
-        objectTypes: ['Person', 'Car', 'Bike', 'Truck', 'Bus'],
+        objectTypes: ['Human', 'Car', 'Truck', 'Bus', 'Bike', 'Vehicle', 'Undefined'],
         minDistance: 20,
         minAge: 2,
       },
@@ -285,7 +285,7 @@ function CameraManagement({ onClose, inline = false }) {
                     <th>Name</th>
                     <th>Serial Number</th>
                     <th>Type</th>
-                    <th>Location</th>
+                    <th>Model</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -307,7 +307,7 @@ function CameraManagement({ onClose, inline = false }) {
                             {camera.cameraType === 'local' ? 'Local' : 'Remote'}
                           </span>
                         </td>
-                        <td>{camera.location || '-'}</td>
+                        <td>{camera.model || '-'}</td>
                         <td>
                           <span className={`status-badge status-${camera.enabled ? 'enabled' : 'disabled'}`}>
                             {camera.enabled ? 'Enabled' : 'Disabled'}

@@ -2,10 +2,11 @@ import mqtt from 'mqtt';
 import { mqttConfig } from '../config/index.js';
 import { parseDataQMessage, isPathDataMessage } from '../dataq/parser.js';
 import { savePathEvent } from '../services/pathEventService.js';
-import { updateCameraSnapshotFromMQTT } from '../services/cameraService.js';
+import { updateCameraSnapshotFromMQTT, upsertCameraFromAnnouncement } from '../services/cameraService.js';
 import { Camera, MqttConfig } from '../models/index.js';
 import logger from '../utils/logger.js';
 import { broadcastPathEvent } from '../websocket/index.js';
+import { broadcastSnapshot } from '../websocket/broadcaster.js';
 import { processPathEvent as processCounterSets } from '../services/counterSetsService.js';
 
 let client = null;
@@ -26,30 +27,20 @@ async function subscribeToActiveCameras() {
     const cameras = await Camera.find({}).lean();
     console.log(`\nFound ${cameras.length} cameras in database`);
 
+    // Always subscribe to wildcard topics so new devices are auto-discovered
+    // even when no cameras have been registered yet.
+    const subscriptions = ['dataq/connect/+', 'dataq/status/+', 'dataq/image/+'];
+
     if (cameras.length === 0) {
-      console.log('No cameras configured - skipping MQTT subscriptions');
-      logger.warn('No cameras found in database for MQTT subscription');
-      return;
+      logger.info('No cameras in database - subscribing to discovery topics only');
     }
 
-    // Subscribe to each camera's path topic
-    const subscriptions = [];
-
+    // Subscribe to each known camera's path topic
     for (const camera of cameras) {
       // Use custom mqttTopic if defined, otherwise use default format
       const pathTopic = camera.mqttTopic || `dataq/path/${camera.serialNumber}`;
       subscriptions.push(pathTopic);
-
-      // For remote cameras, also subscribe to image topic
-      if (camera.cameraType === 'remote') {
-        const imageTopic = `image/${camera.serialNumber}`;
-        subscriptions.push(imageTopic);
-      }
     }
-
-    // Add device announcement and status topics
-    subscriptions.push('dataq/connect/+');
-    subscriptions.push('dataq/status/+');
 
     // Subscribe to all topics
     console.log(`\nSubscribing to ${subscriptions.length} MQTT topics:`);
@@ -267,23 +258,47 @@ async function handleConnectMessage(topic, payload) {
       address: message.address,
     });
 
-    // Update camera device status
-    await Camera.findOneAndUpdate(
-      { serialNumber },
-      {
-        $set: {
-          'deviceStatus.connected': message.connected,
-          'deviceStatus.address': message.address || '',
-          'deviceStatus.lastSeen': new Date(),
+    if (!message.connected) {
+      // Last-Will-Testament or graceful disconnect – just mark as disconnected
+      await Camera.findOneAndUpdate(
+        { serialNumber },
+        {
+          $set: {
+            'deviceStatus.connected': false,
+            'deviceStatus.lastSeen': new Date(),
+          },
         },
-      },
-      { upsert: false }
-    );
+        { upsert: false }
+      );
+      logger.info('Camera marked as disconnected', { serialNumber });
+      return;
+    }
 
-    logger.info('Camera device status updated', {
-      serialNumber,
-      connected: message.connected,
+    // connected === true: auto-create or update the camera
+    const { camera, isNew } = await upsertCameraFromAnnouncement({
+      serial: serialNumber,
+      name: message.name,
+      location: message.location,
+      model: message.model,
+      address: message.address,
+      labels: message.labels,
     });
+
+    // If this is a brand-new camera, subscribe to its path topic immediately
+    if (isNew && client && isConnected) {
+      const pathTopic = camera.mqttTopic || `dataq/path/${serialNumber}`;
+      client.subscribe(pathTopic, (err) => {
+        if (err) {
+          logger.error('Failed to subscribe to new camera path topic', {
+            error: err.message,
+            topic: pathTopic,
+          });
+        } else {
+          logger.info('Subscribed to auto-discovered camera path topic', { topic: pathTopic });
+          console.log(`  ✓ Auto-discovered camera: subscribed to ${pathTopic}`);
+        }
+      });
+    }
   } catch (error) {
     logger.error('Error handling connect message', {
       error: error.message,
@@ -346,7 +361,7 @@ async function handleMQTTMessage(topic, payload) {
   try {
     logger.debug('Received MQTT message', { topic, size: payload.length });
 
-    // Check if this is a device connect announcement (dataq/connect/{SERIAL})
+    // Check if this is a device connection announcement (dataq/connect/{SERIAL})
     if (topic.startsWith('dataq/connect/')) {
       await handleConnectMessage(topic, payload);
       return;
@@ -358,7 +373,13 @@ async function handleMQTTMessage(topic, payload) {
       return;
     }
 
-    // Check if this is an image topic (image/{SERIAL})
+    // Check if this is a DataQ image topic (dataq/image/{SERIAL})
+    if (topic.startsWith('dataq/image/')) {
+      await handleImageMessage(topic, payload);
+      return;
+    }
+
+    // Legacy image topic (image/{SERIAL})
     if (topic.startsWith('image/')) {
       await handleImageMessage(topic, payload);
       return;
@@ -437,8 +458,10 @@ async function handleImageMessage(topic, payload) {
   try {
     const message = JSON.parse(payload.toString());
 
-    // Extract serial number from topic (image/{SERIAL})
-    const serialNumber = topic.split('/')[1];
+    // Extract serial number from topic.
+    // Supports both dataq/image/{SERIAL} (index 2) and legacy image/{SERIAL} (index 1)
+    const parts = topic.split('/');
+    const serialNumber = parts[0] === 'dataq' ? parts[2] : parts[1];
 
     if (!serialNumber || !message.image) {
       logger.warn('Invalid image message format', { topic });
@@ -452,6 +475,15 @@ async function handleImageMessage(topic, payload) {
       timestamp: message.timestamp || Date.now(),
       rotation: message.rotation,
       aspectRatio: message.aspect,
+    });
+
+    // Broadcast image to subscribed WebSocket clients
+    broadcastSnapshot({
+      serial: serialNumber.toUpperCase(),
+      image: message.image,
+      timestamp: message.timestamp || Date.now(),
+      rotation: message.rotation ?? 0,
+      aspect: message.aspect ?? '16:9',
     });
 
     logger.debug('Camera snapshot updated from MQTT', {

@@ -117,7 +117,7 @@ function Dashboard({ inline = false }) {
                   <tr>
                     <th>Status</th>
                     <th>Name</th>
-                    <th>Serial Number</th>
+                    <th>Location</th>
                       <th>Paths</th>
                     <th>Type</th>
                       <th>Retention (days)</th>
@@ -136,7 +136,7 @@ function Dashboard({ inline = false }) {
                           </span>
                         </td>
                         <td className="device-name">{camera.name || 'Unnamed'}</td>
-                        <td className="device-serial">{camera.serialNumber}</td>
+                        <td className="device-location">{camera.location || '—'}</td>
                         <td className="device-count">{camera.pathCount ?? 0}</td>
                         <td>
                           <span className="device-type-badge">{camera.cameraType || 'N/A'}</span>
