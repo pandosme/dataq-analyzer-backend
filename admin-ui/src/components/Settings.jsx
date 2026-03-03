@@ -101,11 +101,11 @@ function Settings({ onClose, inline = false }) {
         const legacyVideox = systemRes.data.videox;
         const playbackData = systemRes.data.playback || legacyVideox;
 
-        // Determine type based on enabled state
-        let playbackType = playbackData?.type || 'VideoX';
-        if (!playbackData?.enabled && !playbackData?.type) {
-          playbackType = 'None';
-        }
+        // Determine type: "None" is a UI-only concept meaning disabled.
+        // Always show None when playback is disabled, regardless of stored type.
+        let playbackType = playbackData?.enabled
+          ? (playbackData?.type || 'VideoX')
+          : 'None';
 
         const loadedConfig = {
           ...systemRes.data,

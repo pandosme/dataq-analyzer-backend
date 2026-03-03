@@ -59,9 +59,12 @@ router.put('/', ...editorGuard, async (req, res) => {
     }
 
     if (playbackConfig !== undefined) {
+      // The UI uses type="None" to mean disabled; map it to a valid enum value.
+      const playbackType = playbackConfig.type === 'None' ? 'VideoX' : playbackConfig.type;
+      const playbackEnabled = playbackConfig.type === 'None' ? false : playbackConfig.enabled;
       updates.playback = {
-        enabled: playbackConfig.enabled,
-        type: playbackConfig.type,
+        enabled: playbackEnabled,
+        type: playbackType,
         serverUrl: playbackConfig.serverUrl,
         apiKey: playbackConfig.apiKey,
         preTime: playbackConfig.preTime,
@@ -219,7 +222,19 @@ router.get('/system', async (req, res) => {
  */
 router.put('/system', ...editorGuard, async (req, res) => {
   try {
-    const config = await configService.updateSystemConfig(req.body);
+    const body = { ...req.body };
+
+    // Normalise playback: the UI uses type="None" to mean "disabled".
+    // "None" is not a valid enum value in the model, so convert it here.
+    if (body.playback && body.playback.type === 'None') {
+      body.playback = {
+        ...body.playback,
+        enabled: false,
+        type: 'VideoX', // keep a valid enum value as the stored type
+      };
+    }
+
+    const config = await configService.updateSystemConfig(body);
     res.json({ success: true, data: config });
   } catch (error) {
     logger.error('Error updating system config', { error: error.message });

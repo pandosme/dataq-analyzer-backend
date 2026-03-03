@@ -5,7 +5,6 @@
 
 import axios from 'axios';
 import { spawn } from 'child_process';
-import { PassThrough } from 'stream';
 import { writeFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -52,6 +51,11 @@ export async function getVideoClip(serialNumber, timestamp, options = {}) {
     const preTime = options.preTime ?? config.playback.preTime;
     const postTime = options.postTime ?? config.playback.postTime;
     const age = options.age ?? 0; // Object age (how long it was in scene)
+
+    // Allow caller to override the API key (e.g. from frontend .env during dev)
+    if (options.apiKey) {
+      config.playback.apiKey = options.apiKey;
+    }
 
     // Calculate time range:
     // IMPORTANT: timestamp represents when the MQTT message was sent (i.e., when tracking completed/object exited)
@@ -113,7 +117,9 @@ async function getVideoFromVideoX(camera, startTime, endTime, playbackConfig) {
     const startTimeEpoch = Math.floor(startTime.getTime() / 1000);
 
     // VideoX API: GET /api/recordings/export-clip
-    const url = `${playbackConfig.serverUrl}/api/recordings/export-clip`;
+    // Strip trailing slash from serverUrl to avoid double-slash in path
+    const baseUrl = playbackConfig.serverUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}/api/recordings/export-clip`;
 
     logger.debug('Requesting video from VideoX', {
       cameraId: camera.serialNumber,
@@ -157,6 +163,20 @@ async function getVideoFromVideoX(camera, startTime, endTime, playbackConfig) {
       duration,
       contentType: response.headers['content-type'],
     });
+
+    // Guard: VideoX must return video content. If it returns HTML/JSON
+    // (e.g. because of a malformed URL or auth failure that still gives 200),
+    // bail out early with a clear error rather than sending garbage to ffmpeg.
+    const contentType = response.headers['content-type'] || '';
+    if (!contentType.startsWith('video/')) {
+      response.data.destroy();
+      logger.error('VideoX returned non-video content type', {
+        serialNumber: camera.serialNumber,
+        contentType,
+        url,
+      });
+      throw new Error(`VideoX returned unexpected content-type: ${contentType}. Check serverUrl and API key.`);
+    }
 
     // Fragment the MP4 for MediaSource API compatibility
     // Regular MP4 from VideoX has moov atom at the end, which prevents
@@ -217,43 +237,59 @@ async function getVideoFromVideoX(camera, startTime, endTime, playbackConfig) {
     });
 
     // Fragment the buffered video with ffmpeg (reading from file)
+    // Output to a second temp file to avoid the PassThrough race condition:
+    // when ffmpeg pipes to pipe:1 it can finish before videoHandlers attaches
+    // a 'data' listener, causing the stream end to be missed.
+    const tempOutputFile = join(tmpdir(), `videox-frag-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`);
+
     const ffmpeg = spawn('ffmpeg', [
       '-i', tempInputFile,          // Input from temp file (allows seeking)
       '-c', 'copy',                 // Copy codec (no re-encoding)
       '-movflags', 'frag_keyframe+empty_moov+default_base_moof', // Fragment MP4
       '-f', 'mp4',                  // Output format
-      'pipe:1'                      // Output to stdout
+      '-y',                         // Overwrite output if exists
+      tempOutputFile,               // Output to temp file (avoids streaming race)
     ]);
 
-    // Create a passthrough stream for ffmpeg output
-    const outputStream = new PassThrough();
+    // Wait for ffmpeg to finish completely before returning stream
+    await new Promise((resolve, reject) => {
+      ffmpeg.stderr.on('data', (data) => {
+        logger.debug('ffmpeg stderr', { message: data.toString().trim() });
+      });
 
-    // Pipe ffmpeg stdout to our output stream
-    ffmpeg.stdout.pipe(outputStream);
+      ffmpeg.on('error', (error) => {
+        logger.error('ffmpeg process error', { error: error.message });
+        unlink(tempInputFile).catch(() => {});
+        reject(error);
+      });
 
-    // Handle ffmpeg errors
-    ffmpeg.stderr.on('data', (data) => {
-      logger.debug('ffmpeg stderr', { message: data.toString().trim() });
-    });
-
-    ffmpeg.on('error', (error) => {
-      logger.error('ffmpeg process error', { error: error.message });
-      outputStream.destroy(error);
-      // Clean up temp file on error
-      unlink(tempInputFile).catch(() => {});
-    });
-
-    ffmpeg.on('exit', (code, signal) => {
-      if (code !== 0 && code !== null) {
-        logger.warn('ffmpeg exited with non-zero code', { code, signal });
-      } else {
-        logger.debug('ffmpeg completed successfully');
-      }
-      // Clean up temp file after ffmpeg completes
-      unlink(tempInputFile).catch((err) => {
-        logger.warn('Failed to delete temp file', { file: tempInputFile, error: err.message });
+      ffmpeg.on('exit', (code, signal) => {
+        unlink(tempInputFile).catch(() => {});
+        if (code !== 0) {
+          logger.warn('ffmpeg exited with non-zero code', { code, signal });
+          reject(new Error(`ffmpeg exited with code ${code}`));
+        } else {
+          logger.debug('ffmpeg completed successfully');
+          resolve();
+        }
       });
     });
+
+    // Read the fragmented file and return as a Readable stream.
+    // Using Readable.from(buffer) ensures all data is ready the moment the
+    // caller attaches a 'data' listener — no race condition possible.
+    const { readFile } = await import('fs/promises');
+    const { Readable } = await import('stream');
+    const fragBuffer = await readFile(tempOutputFile);
+    unlink(tempOutputFile).catch(() => {});
+
+    logger.info('Fragmented video ready', {
+      serialNumber: camera.serialNumber,
+      inputSize: videoBuffer.length,
+      outputSize: fragBuffer.length,
+    });
+
+    const outputStream = Readable.from(fragBuffer);
 
     // Return fragmented stream
     return {

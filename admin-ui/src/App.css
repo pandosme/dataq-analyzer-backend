@@ -158,6 +158,15 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+}
+
+/* Wrapper for each page section — must propagate flex height to children */
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .empty-state {

@@ -13,8 +13,11 @@
 }
 
 .camera-management-inline {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
 }
 
 .camera-management-modal .camera-management-content {
@@ -28,10 +31,13 @@
 }
 
 .camera-management-inline .camera-management-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   background: white;
   border-radius: 8px;
   width: 100%;
-  height: 100%;
   overflow-y: auto;
 }
 

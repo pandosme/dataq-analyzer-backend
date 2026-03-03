@@ -234,7 +234,7 @@ export async function upsertCameraFromAnnouncement(announcement) {
     const serialNumber = (announcement.serial || '').toUpperCase();
     if (!serialNumber) throw new Error('serial is required in announcement');
 
-    const enabledLabels = (announcement.labels || []).filter((l) => l.enabled !== false);
+    const labels = Array.isArray(announcement.labels) ? announcement.labels : [];
 
     const setOnInsert = {
       // Defaults only applied when the document is first created
@@ -248,7 +248,7 @@ export async function upsertCameraFromAnnouncement(announcement) {
       name: announcement.name || serialNumber,
       location: announcement.location || '',
       model: announcement.model || '',
-      labels: enabledLabels,
+      labels: labels,
       'deviceStatus.connected': true,
       'deviceStatus.address': announcement.address || '',
       'deviceStatus.lastSeen': new Date(),
@@ -260,7 +260,7 @@ export async function upsertCameraFromAnnouncement(announcement) {
         $set: setAlways,
         $setOnInsert: setOnInsert,
       },
-      { upsert: true, new: true, rawResult: true }
+      { upsert: true, new: true, includeResultMetadata: true }
     );
 
     const isNew = result.lastErrorObject?.upserted != null;

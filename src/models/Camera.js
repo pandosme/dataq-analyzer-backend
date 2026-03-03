@@ -155,13 +155,7 @@ const cameraSchema = new mongoose.Schema(
     },
     // Labels/classes this device can detect (from dataq/connect announcement)
     labels: {
-      type: [
-        {
-          id: { type: String },
-          name: { type: String },
-          enabled: { type: Boolean, default: true },
-        },
-      ],
+      type: [String],
       default: [],
     },
     // Whether this camera was auto-discovered via MQTT announcement

@@ -1,4 +1,6 @@
 import { MongoConfig, MqttConfig, SystemConfig } from '../models/index.js';
+// NOTE: VIDEOX_API_KEY env var can be used as a fallback for the VideoX API key
+// when the system config has not yet been persisted (dev environment bootstrap).
 import { connectMQTT, disconnectMQTT, getMQTTClient } from '../mqtt/client.js';
 import mongoose from 'mongoose';
 import logger from '../utils/logger.js';
@@ -224,6 +226,15 @@ export async function getSystemConfig() {
         playbackEnabled: config.playback?.enabled,
       });
     }
+
+    // If the DB has no API key set, fall back to environment variable.
+    // This lets developers bootstrap the backend from .env without needing
+    // to go through the admin UI first.
+    if (config.playback && !config.playback.apiKey && process.env.VIDEOX_API_KEY) {
+      logger.info('Using VIDEOX_API_KEY from environment (DB not yet configured)');
+      config = { ...config, playback: { ...config.playback, apiKey: process.env.VIDEOX_API_KEY } };
+    }
+
     return config;
   } catch (error) {
     logger.error('Failed to get system config', { error: error.message });
@@ -283,34 +294,47 @@ export async function testPlaybackConnection(settings) {
       // Test VideoX health endpoint
       const healthUrl = `${serverUrl}/api/system/health`;
 
-      // Configure HTTPS agent if TLS is enabled
+      // Hard deadline: abort the request after 8 seconds regardless of network state
+      const controller = new AbortController();
+      const hardTimeout = setTimeout(() => controller.abort(), 8000);
+
+      // Configure http/https agents with explicit socket-level timeouts
+      const http = (await import('http')).default;
+      const httpAgent  = new http.Agent({ keepAlive: false });
+      const httpsAgent = new https.Agent({
+        keepAlive: false,
+        rejectUnauthorized: useTls ? false : true,
+      });
+
       const axiosConfig = {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
         },
-        timeout: 5000,
+        timeout: 7000,       // response timeout
+        signal: controller.signal,
+        httpAgent,
+        httpsAgent,
       };
 
-      // If using TLS, disable certificate verification
-      if (useTls) {
-        axiosConfig.httpsAgent = new https.Agent({
-          rejectUnauthorized: false,
-        });
-      }
+      try {
+        const response = await axios.get(healthUrl, axiosConfig);
+        clearTimeout(hardTimeout);
 
-      const response = await axios.get(healthUrl, axiosConfig);
-
-      if (response.data && response.data.status) {
-        return {
-          success: true,
-          message: `Connected successfully to VideoX. Server is ${response.data.status}`,
-          data: response.data,
-        };
-      } else {
-        return {
-          success: false,
-          message: 'Unexpected response from VideoX server',
-        };
+        if (response.data && response.data.status) {
+          return {
+            success: true,
+            message: `Connected successfully to VideoX. Server is ${response.data.status}`,
+            data: response.data,
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Unexpected response from VideoX server',
+          };
+        }
+      } catch (fetchError) {
+        clearTimeout(hardTimeout);
+        throw fetchError;
       }
     } else if (type === 'ACS') {
       // ACS implementation to be added later
@@ -333,7 +357,12 @@ export async function testPlaybackConnection(settings) {
   } catch (error) {
     logger.error('Playback connection test failed', { error: error.message, type });
 
-    if (error.code === 'ECONNREFUSED') {
+    if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+      return {
+        success: false,
+        message: `Connection timed out — could not reach ${type} server at ${serverUrl}`,
+      };
+    } else if (error.code === 'ECONNREFUSED') {
       return {
         success: false,
         message: `Cannot connect to ${type} server at ${serverUrl}`,
