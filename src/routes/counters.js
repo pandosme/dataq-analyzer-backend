@@ -92,7 +92,8 @@ router.get('/:id', async (req, res) => {
 /** PUT /api/counters/:id */
 router.put('/:id', ...editorGuard, async (req, res) => {
   try {
-    const doc = await counterSetsService.update(req.params.id, req.body);
+    const mqttClient = getMQTTClient();
+    const doc = await counterSetsService.update(req.params.id, req.body, mqttClient);
     if (!doc) return res.status(404).json({ success: false, error: 'Counter set not found' });
     res.json({ success: true, data: doc });
   } catch (err) {

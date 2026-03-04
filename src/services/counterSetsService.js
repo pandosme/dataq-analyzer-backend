@@ -339,7 +339,7 @@ export async function create(body, mqttClient) {
   return doc.toObject();
 }
 
-export async function update(id, body) {
+export async function update(id, body, mqttClient) {
   const cs = await CounterSet.findById(id);
   if (!cs) return null;
 
@@ -347,7 +347,7 @@ export async function update(id, body) {
   if (body.name != null) cs.name = body.name;
   if (body.mqttTopic != null) cs.mqttTopic = body.mqttTopic;
   if (body.mqttInterval != null) cs.mqttInterval = body.mqttInterval;
-  if (body.objectClasses?.length) cs.objectClasses = body.objectClasses;
+  if (body.objectClasses != null) cs.objectClasses = body.objectClasses;
 
   // Determine if zones changed (structure or geometry)
   let zonesChanged = false;
@@ -405,6 +405,12 @@ export async function update(id, body) {
 
     await cs.save();
 
+    // Restart MQTT timer with new settings
+    stopMqttTimer(id);
+    if (cs.mqttTopic && cs.mqttInterval && mqttClient) {
+      startMqttTimer(cs.toObject(), mqttClient);
+    }
+
     logger.info('CounterSet zones updated — counters reset', { id });
     return cs.toObject();
   }
@@ -421,6 +427,13 @@ export async function update(id, body) {
   }
 
   await cs.save();
+
+  // Restart MQTT timer with new settings
+  stopMqttTimer(id);
+  if (cs.mqttTopic && cs.mqttInterval && mqttClient) {
+    startMqttTimer(cs.toObject(), mqttClient);
+  }
+
   return cs.toObject();
 }
 
