@@ -23,9 +23,9 @@ async function subscribeToActiveCameras() {
   }
 
   try {
-    // Load all cameras from database
-    const cameras = await Camera.find({}).lean();
-    console.log(`\nFound ${cameras.length} cameras in database`);
+    // Load all enabled cameras from database
+    const cameras = await Camera.find({ enabled: true }).lean();
+    console.log(`\nFound ${cameras.length} enabled cameras in database`);
 
     // Always subscribe to wildcard topics so new devices are auto-discovered
     // even when no cameras have been registered yet.
@@ -407,6 +407,12 @@ async function handleMQTTMessage(topic, payload) {
       logger.warn('Camera not found for path event', {
         serial: parsedData.serial,
       });
+      return;
+    }
+
+    // Ignore messages from disabled cameras
+    if (!camera.enabled) {
+      logger.debug('Ignoring path event from disabled camera', { serial: serialNumber });
       return;
     }
 
