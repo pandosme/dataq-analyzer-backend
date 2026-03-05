@@ -349,6 +349,15 @@ export async function update(id, body, mqttClient) {
   if (body.mqttInterval != null) cs.mqttInterval = body.mqttInterval;
   if (body.objectClasses != null) cs.objectClasses = body.objectClasses;
 
+  // Flow view config updates (arrow color, opacity, selectedClass, displayMode)
+  if (body.flowViewConfig != null) {
+    if (!cs.flowViewConfig) cs.flowViewConfig = {};
+    if (body.flowViewConfig.arrowColor != null) cs.flowViewConfig.arrowColor = body.flowViewConfig.arrowColor;
+    if (body.flowViewConfig.arrowOpacity != null) cs.flowViewConfig.arrowOpacity = body.flowViewConfig.arrowOpacity;
+    if (body.flowViewConfig.selectedClass !== undefined) cs.flowViewConfig.selectedClass = body.flowViewConfig.selectedClass;
+    if (body.flowViewConfig.displayMode != null) cs.flowViewConfig.displayMode = body.flowViewConfig.displayMode;
+  }
+
   // Determine if zones changed (structure or geometry)
   let zonesChanged = false;
   if (body.zones) {
@@ -389,6 +398,7 @@ export async function update(id, body, mqttClient) {
         if (c) {
           if (upd.name != null) c.name = upd.name;
           if (upd.enabled != null) c.enabled = upd.enabled;
+          if (upd.arrowConfig != null) c.arrowConfig = upd.arrowConfig;
         }
       }
     }
@@ -415,13 +425,14 @@ export async function update(id, body, mqttClient) {
     return cs.toObject();
   }
 
-  // No zone change — just update counter names/enabled
+  // No zone change — just update counter names/enabled/arrowConfig
   if (body.counters?.length) {
     for (const upd of body.counters) {
       const c = cs.counters.find((x) => x.id === upd.id);
       if (c) {
         if (upd.name != null) c.name = upd.name;
         if (upd.enabled != null) c.enabled = upd.enabled;
+        if (upd.arrowConfig != null) c.arrowConfig = upd.arrowConfig;
       }
     }
   }

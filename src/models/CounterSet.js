@@ -14,6 +14,23 @@ const zoneSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const pointSchema = new mongoose.Schema(
+  { x: Number, y: Number },
+  { _id: false }
+);
+
+const arrowConfigSchema = new mongoose.Schema(
+  {
+    startOffset: { type: pointSchema, default: { x: 0, y: 0 } },
+    endOffset: { type: pointSchema, default: { x: 0, y: 0 } },
+    controlPoint1: { type: pointSchema, default: null },
+    controlPoint2: { type: pointSchema, default: null },
+    baseWidth: { type: Number, default: 6 },
+    proportional: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
 const counterValueSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
@@ -23,6 +40,7 @@ const counterValueSchema = new mongoose.Schema(
     enabled: { type: Boolean, default: true },
     total: { type: Number, default: 0 },
     byClass: { type: Map, of: Number, default: new Map() },
+    arrowConfig: { type: arrowConfigSchema, default: null },
   },
   { _id: false }
 );
@@ -50,6 +68,12 @@ const counterSetSchema = new mongoose.Schema(
       startedAt: { type: Date, default: null },
       completedAt: { type: Date, default: null },
       error: { type: String, default: null },
+    },
+    flowViewConfig: {
+      arrowColor: { type: String, default: "#3498db" },
+      arrowOpacity: { type: Number, default: 0.7 },
+      selectedClass: { type: String, default: null },
+      displayMode: { type: String, enum: ["total", "average"], default: "total" },
     },
   },
   { timestamps: true }
