@@ -58,14 +58,14 @@ export async function getVideoClip(serialNumber, timestamp, options = {}) {
     }
 
     // Calculate time range:
-    // IMPORTANT: timestamp represents when the MQTT message was sent (i.e., when tracking completed/object exited)
-    // - Object entry time = timestamp - age
-    // - Object exit time = timestamp
-    // - startTime = (timestamp - age) - preTime = timestamp - age - preTime
-    // - endTime = timestamp + postTime
-    // - duration = age + preTime + postTime
-    const startTime = new Date(new Date(timestamp).getTime() - (age + preTime) * 1000);
-    const endTime = new Date(new Date(timestamp).getTime() + postTime * 1000);
+    // IMPORTANT: timestamp represents when the object FIRST APPEARED (entry time)
+    // - Object entry time = timestamp
+    // - Object exit time = timestamp + age
+    // - startTime = timestamp - preTime
+    // - endTime = timestamp + age + postTime
+    // - duration = preTime + age + postTime
+    const startTime = new Date(new Date(timestamp).getTime() - preTime * 1000);
+    const endTime = new Date(new Date(timestamp).getTime() + (age + postTime) * 1000);
 
     logger.info('Fetching video clip', {
       serialNumber,
