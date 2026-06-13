@@ -10,7 +10,6 @@ Express.js backend with embedded admin UI for collecting and analyzing path/flow
 - **MQTT** — Collects DataQ messages from Axis cameras via MQTT broker
 - **MongoDB** — Stores path events, cameras, users, and system configuration
 - **JWT Authentication** — Role-based access (admin / user)
-- **Video Playback** — On-demand clip retrieval from VideoX, Milestone, or ACS
 
 ---
 
