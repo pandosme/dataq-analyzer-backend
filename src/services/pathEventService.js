@@ -45,7 +45,7 @@ export async function queryPathEvents(mongoQuery = {}, options = {}) {
     const events = await PathEvent.find(mongoQuery, projection)
       .sort(sort)
       .skip(skip)
-      .limit(Math.min(limit, 10000)) // Max 10000 results
+      .limit(Math.min(limit, 50000)) // Max 50000 results — AOI/dwell-time filters can be highly selective
       .lean();
 
     return events;
