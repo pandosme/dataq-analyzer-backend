@@ -121,7 +121,7 @@ router.get('/', async (req, res) => {
 
     // Build options
     const options = {
-      limit: limit ? Math.min(parseInt(limit, 10), 10000) : 100,
+      limit: limit ? Math.min(parseInt(limit, 10), 50000) : 100,
       skip: skip ? parseInt(skip, 10) : 0,
       sort: {},
     };
